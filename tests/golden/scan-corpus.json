@@ -1,0 +1,321 @@
+{
+  "findings": [
+    {
+      "cwe": "CWE-94",
+      "detector_id": "python.injection.code-injection",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 13,
+        "end_column": 23,
+        "end_line": 7,
+        "file": "corpus/vulnerable/code-injection.py",
+        "line": 7
+      },
+      "message": "Untrusted input reaches a dynamic code-execution primitive (eval / exec / compile), letting an attacker run arbitrary Python. Never evaluate untrusted input; parse it with ast.literal_eval or a dedicated parser, or remove the dynamic execution entirely.\n",
+      "severity": "critical",
+      "witness": [
+        {
+          "description": "source input",
+          "location": {
+            "column": 11,
+            "end_column": 26,
+            "end_line": 6,
+            "file": "corpus/vulnerable/code-injection.py",
+            "line": 6
+          },
+          "role": "source"
+        },
+        {
+          "description": "sink eval",
+          "location": {
+            "column": 13,
+            "end_column": 23,
+            "end_line": 7,
+            "file": "corpus/vulnerable/code-injection.py",
+            "line": 7
+          },
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "cwe": "CWE-78",
+      "detector_id": "python.injection.os-command",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 4,
+        "end_column": 22,
+        "end_line": 11,
+        "file": "corpus/vulnerable/interproc-os-command.py",
+        "line": 11
+      },
+      "message": "Untrusted input reaches an OS command without sanitization, allowing an attacker to execute arbitrary commands. Prefer a list argv with shell=False, or quote inputs with shlex.quote.\n",
+      "severity": "high",
+      "witness": [
+        {
+          "description": "source input",
+          "location": {
+            "column": 11,
+            "end_column": 26,
+            "end_line": 15,
+            "file": "corpus/vulnerable/interproc-os-command.py",
+            "line": 15
+          },
+          "role": "source"
+        },
+        {
+          "description": "call run_cmd",
+          "location": {
+            "column": 4,
+            "end_column": 27,
+            "end_line": 16,
+            "file": "corpus/vulnerable/interproc-os-command.py",
+            "line": 16
+          },
+          "role": "propagator"
+        },
+        {
+          "description": "sink os.system",
+          "location": {
+            "column": 4,
+            "end_column": 22,
+            "end_line": 11,
+            "file": "corpus/vulnerable/interproc-os-command.py",
+            "line": 11
+          },
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "cwe": "CWE-78",
+      "detector_id": "python.injection.os-command",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 4,
+        "end_column": 29,
+        "end_line": 10,
+        "file": "corpus/vulnerable/os-command.py",
+        "line": 10
+      },
+      "message": "Untrusted input reaches an OS command without sanitization, allowing an attacker to execute arbitrary commands. Prefer a list argv with shell=False, or quote inputs with shlex.quote.\n",
+      "severity": "high",
+      "witness": [
+        {
+          "description": "source input",
+          "location": {
+            "column": 11,
+            "end_column": 26,
+            "end_line": 9,
+            "file": "corpus/vulnerable/os-command.py",
+            "line": 9
+          },
+          "role": "source"
+        },
+        {
+          "description": "sink os.system",
+          "location": {
+            "column": 4,
+            "end_column": 29,
+            "end_line": 10,
+            "file": "corpus/vulnerable/os-command.py",
+            "line": 10
+          },
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "cwe": "CWE-22",
+      "detector_id": "python.traversal.path-traversal",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 9,
+        "end_column": 19,
+        "end_line": 12,
+        "file": "corpus/vulnerable/path-traversal.py",
+        "line": 12
+      },
+      "message": "Untrusted input is used as a filesystem path, letting an attacker escape the intended directory with \"..\" sequences or absolute paths. Validate against an allow-list and strip the directory component (e.g. os.path.basename), or use werkzeug.utils.secure_filename on the untrusted name.\n",
+      "severity": "high",
+      "witness": [
+        {
+          "description": "source input",
+          "location": {
+            "column": 11,
+            "end_column": 26,
+            "end_line": 10,
+            "file": "corpus/vulnerable/path-traversal.py",
+            "line": 10
+          },
+          "role": "source"
+        },
+        {
+          "description": "sink open",
+          "location": {
+            "column": 9,
+            "end_column": 19,
+            "end_line": 12,
+            "file": "corpus/vulnerable/path-traversal.py",
+            "line": 12
+          },
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "cwe": "CWE-89",
+      "detector_id": "python.injection.sql",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 4,
+        "end_column": 23,
+        "end_line": 9,
+        "file": "corpus/vulnerable/sql.py",
+        "line": 9
+      },
+      "message": "Untrusted input is interpolated into a SQL statement instead of being passed as a bound parameter, allowing SQL injection. Use parameterized queries, e.g. cursor.execute(sql, params).\n",
+      "severity": "high",
+      "witness": [
+        {
+          "description": "source input",
+          "location": {
+            "column": 11,
+            "end_column": 26,
+            "end_line": 7,
+            "file": "corpus/vulnerable/sql.py",
+            "line": 7
+          },
+          "role": "source"
+        },
+        {
+          "description": "sink cursor.execute",
+          "location": {
+            "column": 4,
+            "end_column": 23,
+            "end_line": 9,
+            "file": "corpus/vulnerable/sql.py",
+            "line": 9
+          },
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "cwe": "CWE-918",
+      "detector_id": "python.ssrf.ssrf",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 15,
+        "end_column": 32,
+        "end_line": 10,
+        "file": "corpus/vulnerable/ssrf.py",
+        "line": 10
+      },
+      "message": "Untrusted input controls the URL of a server-side HTTP request, letting an attacker reach internal services or cloud metadata endpoints. Validate the URL against an allow-list of trusted hosts/schemes before requesting it.\n",
+      "severity": "high",
+      "witness": [
+        {
+          "description": "source input",
+          "location": {
+            "column": 10,
+            "end_column": 24,
+            "end_line": 9,
+            "file": "corpus/vulnerable/ssrf.py",
+            "line": 9
+          },
+          "role": "source"
+        },
+        {
+          "description": "sink requests.get",
+          "location": {
+            "column": 15,
+            "end_column": 32,
+            "end_line": 10,
+            "file": "corpus/vulnerable/ssrf.py",
+            "line": 10
+          },
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "cwe": "CWE-502",
+      "detector_id": "python.deserialization.unsafe-deserialization",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 11,
+        "end_column": 29,
+        "end_line": 14,
+        "file": "corpus/vulnerable/unsafe-deserialization.py",
+        "line": 14
+      },
+      "message": "Untrusted input is deserialized with pickle or an unsafe YAML loader, which can execute arbitrary code during loading. Never unpickle untrusted data; use a safe format (JSON) or yaml.safe_load for YAML.\n",
+      "severity": "critical",
+      "witness": [
+        {
+          "description": "source flask.request.*",
+          "location": {
+            "column": 11,
+            "end_column": 29,
+            "end_line": 13,
+            "file": "corpus/vulnerable/unsafe-deserialization.py",
+            "line": 13
+          },
+          "role": "source"
+        },
+        {
+          "description": "sink pickle.loads",
+          "location": {
+            "column": 11,
+            "end_column": 29,
+            "end_line": 14,
+            "file": "corpus/vulnerable/unsafe-deserialization.py",
+            "line": 14
+          },
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "cwe": "CWE-611",
+      "detector_id": "python.xxe.xxe",
+      "fingerprint": "<FINGERPRINT>",
+      "location": {
+        "column": 11,
+        "end_column": 41,
+        "end_line": 13,
+        "file": "corpus/vulnerable/xxe.py",
+        "line": 13
+      },
+      "message": "Untrusted XML is parsed by a parser that resolves external entities, enabling file disclosure or SSRF via XXE. Parse untrusted XML with defusedxml, or disable entity resolution on the parser.\n",
+      "severity": "high",
+      "witness": [
+        {
+          "description": "source flask.request.*",
+          "location": {
+            "column": 14,
+            "end_column": 32,
+            "end_line": 12,
+            "file": "corpus/vulnerable/xxe.py",
+            "line": 12
+          },
+          "role": "source"
+        },
+        {
+          "description": "sink lxml.etree.fromstring",
+          "location": {
+            "column": 11,
+            "end_column": 41,
+            "end_line": 13,
+            "file": "corpus/vulnerable/xxe.py",
+            "line": 13
+          },
+          "role": "sink"
+        }
+      ]
+    }
+  ],
+  "tool": "scanipy",
+  "version": "<VERSION>"
+}
