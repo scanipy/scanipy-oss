@@ -46,33 +46,35 @@ interprocedural** only; documented limitations live in `docs/dsl-reference.md` a
 
 ```
 src/scanipy/
-  cli.py            CLI (click) — commands, flags, exit codes
+  cli.py            CLI (click): scan, rules list/show/validate, version
+  scanner.py        scan orchestrator (discover → parse → analyze → report → exit)
+  discovery.py      file walking + excludes + .gitignore
+  config.py         ScanConfig + layered load_config (.scanipy.yml / [tool.scanipy])
+  registry.py       loads + validates the bundled detector specs
   exit_codes.py     ExitCode: OK=0, FINDINGS=1, ERROR=2
   models.py         Severity, Location, WitnessStep, Finding (carries the witness)
-  config.py         ScanConfig + load_config (defaults only for now)
-  registry.py       discovers bundled detector specs
-  dsl/              taint DSL (draft/v0): patterns.py, spec.py, parser.py
-  engine/taint.py   TaintEngine (stub)
-  frontends/        Frontend ABC + python_frontend.py (ast-based, stub)
-  reporting/        text / json / sarif reporters (functional)
+  ir.py             shared normalized IR (frontend produces; engine consumes)
+  dsl/              taint DSL: patterns.py, spec.py, parser.py (parse_spec)
+  engine/           taint.py (TaintEngine), matcher.py, taint_state.py,
+                    propagation.py, witness.py, summaries.py
+  frontends/        base.py, resolver.py, python_frontend.py (ast → ir)
+  reporting/        text / json / sarif reporters
   detectors/<class>/<name>.yml   bundled detector specs (package data)
-tests/
-  unit/             pytest suites (CLI smoke + core)
-  fixtures/python/{vulnerable,safe}/   true-positive / true-negative corpora
-docs/
-  usage.md  writing-detectors.md  dsl-reference.md   (dsl-reference = canonical schema)
-.claude/
-  agents/  commands/  rules/  settings.json
-.github/workflows/  ci.yml  release.yml
-pyproject.toml  (hatchling, ruff, mypy, pytest config)
+tests/   unit/  integration/  docs/  golden/  _support/
+         fixtures/python/{vulnerable,safe}/   true-positive / true-negative corpora
+docs/    usage.md  writing-detectors.md  dsl-reference.md (canonical schema)
+         ir-reference.md  engine-reference.md  testing.md
+         examples/end-to-end.md  release-readiness.md  design/v1-design-notes.md
+.claude/  agents/  commands/  rules/  settings.json
+.github/workflows/  ci.yml  release.yml  enforce-pr-only-merges.yml
+PLAN.md  CHANGELOG.md  pyproject.toml  (hatchling, ruff, mypy, pytest, coverage)
 ```
 
 ## 4. The taint model and the DSL
 
 A detector is a YAML spec with `sources`, `sinks`, `sanitizers`, and
 `propagators` (pattern `kind` ∈ `call`, `attribute`, `parameter`, `import`;
-dotted patterns with `*` wildcards). The DSL is **draft/v0** and co-evolves with
-the engine.
+dotted patterns with `*` wildcards). The DSL is **v0 — locked for `0.2.0`**.
 
 **The canonical, field-by-field schema lives in `docs/dsl-reference.md`.** Do not
 restate the full schema elsewhere — link to it.
