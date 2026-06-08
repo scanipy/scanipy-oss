@@ -1,0 +1,10 @@
+id: python.test.bad-dotted
+name: Bad dotted pattern
+cwe: CWE-78
+severity: low
+languages: [python]
+message: Pattern has a double dot.
+sources:
+  - { kind: call, pattern: "os..system" }
+sinks:
+  - { kind: call, pattern: "os.system" }

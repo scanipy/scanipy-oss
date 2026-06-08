@@ -1,0 +1,12 @@
+id: python.test.propagator-missing-flow
+name: Propagator missing flow
+cwe: CWE-78
+severity: low
+languages: [python]
+message: propagators require a flow.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }
+propagators:
+  - { kind: call, pattern: "str.format" }

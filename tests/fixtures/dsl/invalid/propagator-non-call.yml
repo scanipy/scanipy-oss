@@ -1,0 +1,12 @@
+id: python.test.propagator-non-call
+name: Propagator must be call
+cwe: CWE-78
+severity: low
+languages: [python]
+message: propagators must be kind call.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }
+propagators:
+  - { kind: attribute, pattern: "x.y", flow: { from: any-arg, to: return } }

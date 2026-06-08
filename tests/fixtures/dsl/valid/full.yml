@@ -1,0 +1,29 @@
+# A spec exercising every optional field and constraint shape.
+id: python.test.full
+name: Full feature detector
+cwe: CWE-89
+severity: critical
+languages: [python]
+message: >
+  Exercises sanitizers, propagators, args, when-keyword constraints, wildcards,
+  and free-form metadata.
+metadata:
+  owasp: "A03:2021-Injection"
+  references:
+    - https://cwe.mitre.org/data/definitions/89.html
+  nested:
+    flag: true
+    count: 3
+sources:
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+sanitizers:
+  - { kind: call, pattern: "shlex.quote" }
+sinks:
+  - { kind: call, pattern: "os.system", args: [0] }
+  - { kind: call, pattern: "subprocess.*", when: { keyword: { shell: true } } }
+  - { kind: call, pattern: "*.cursor.execute", args: [1, 0, 0] }
+propagators:
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }
+  - { kind: call, pattern: "os.path.join", flow: { from: arg:0, to: return } }
+  - { kind: call, pattern: "shutil.copy", flow: { from: self, to: return } }

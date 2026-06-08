@@ -1,0 +1,10 @@
+id: python.test.bad-cwe
+name: Bad CWE
+cwe: CWE_78
+severity: low
+languages: [python]
+message: CWE does not match the CWE-<digits> form.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

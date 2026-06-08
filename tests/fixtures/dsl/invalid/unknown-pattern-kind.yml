@@ -1,0 +1,10 @@
+id: python.test.unknown-kind
+name: Unknown pattern kind
+cwe: CWE-78
+severity: low
+languages: [python]
+message: Uses a pattern kind that does not exist.
+sources:
+  - { kind: gadget, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

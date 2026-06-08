@@ -1,0 +1,11 @@
+id: python.test.unknown-top
+name: Unknown top key
+cwe: CWE-78
+severity: low
+languages: [python]
+message: Has a bogus top-level key.
+bogus: surprise
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

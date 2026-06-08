@@ -1,0 +1,9 @@
+name: No id here
+cwe: CWE-78
+severity: low
+languages: [python]
+message: Missing the required id field.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

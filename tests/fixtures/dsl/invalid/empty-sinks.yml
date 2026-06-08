@@ -1,0 +1,9 @@
+id: python.test.empty-sinks
+name: Empty sinks
+cwe: CWE-78
+severity: low
+languages: [python]
+message: sinks must be non-empty.
+sources:
+  - { kind: call, pattern: "input" }
+sinks: []

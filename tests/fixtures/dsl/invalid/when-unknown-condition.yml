@@ -1,0 +1,10 @@
+id: python.test.when-unknown-condition
+name: Unknown when condition
+cwe: CWE-78
+severity: low
+languages: [python]
+message: only the keyword condition is supported.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "subprocess.run", when: { argument: { shell: true } } }

@@ -1,0 +1,12 @@
+# Exercises the `import` source kind (module path, optionally ending in `*`).
+id: python.test.import-kind
+name: Import-kind detector
+cwe: CWE-502
+severity: critical
+languages: [python]
+message: A dangerous module import is treated as a source/sink site.
+sources:
+  - { kind: import, pattern: "pickle" }
+  - { kind: import, pattern: "flask.*" }
+sinks:
+  - { kind: call, pattern: "pickle.loads", args: [0] }

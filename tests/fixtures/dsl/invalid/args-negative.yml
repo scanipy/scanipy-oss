@@ -1,0 +1,10 @@
+id: python.test.args-negative
+name: Negative arg index
+cwe: CWE-78
+severity: low
+languages: [python]
+message: arg indices must be non-negative.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system", args: [-1] }

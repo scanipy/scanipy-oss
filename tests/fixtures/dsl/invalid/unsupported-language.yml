@@ -1,0 +1,10 @@
+id: python.test.unsupported-language
+name: Unsupported language
+cwe: CWE-78
+severity: low
+languages: [javascript]
+message: v1 supports python only.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

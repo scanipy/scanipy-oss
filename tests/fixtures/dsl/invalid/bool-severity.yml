@@ -1,0 +1,10 @@
+id: python.test.bool-severity
+name: Bool severity
+cwe: CWE-78
+severity: yes
+languages: [python]
+message: severity:yes is a YAML bool, not the string "yes".
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

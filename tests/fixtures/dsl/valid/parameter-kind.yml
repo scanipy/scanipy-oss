@@ -1,0 +1,12 @@
+# Exercises the `parameter` source kind (bare name + scoped selector shapes).
+id: python.test.parameter-kind
+name: Parameter-kind detector
+cwe: CWE-918
+severity: high
+languages: [python]
+message: A request-handler parameter is treated as an untrusted source.
+sources:
+  - { kind: parameter, pattern: "request" }
+  - { kind: parameter, pattern: "handler.request" }
+sinks:
+  - { kind: call, pattern: "urllib.request.urlopen", args: [0] }
