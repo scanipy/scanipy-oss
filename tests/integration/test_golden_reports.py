@@ -20,6 +20,7 @@ Regenerate after an intentional change with::
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -32,7 +33,22 @@ from tests._support.normalize import (
 
 from scanipy.reporting import get_reporter
 
-pytestmark = pytest.mark.integration
+# The golden encodes exact AST positions (columns / end-positions). CPython does
+# not guarantee byte-identical positions across versions (e.g. PEP 701 shifted
+# f-string positions in 3.12), so the snapshot is pinned to the interpreter it is
+# generated on (3.12) and the comparison is skipped elsewhere. Within-version
+# nondeterminism is still caught on every 3.10-3.13 matrix entry by the
+# determinism suite (scan-twice + input-order shuffle); goldens are deliberately
+# version-pinned regression artifacts.
+_GOLDEN_PYTHON = (3, 12)
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        sys.version_info[:2] != _GOLDEN_PYTHON,
+        reason="golden snapshot is pinned to the generating interpreter's AST positions",
+    ),
+]
 
 GOLDEN_DIR = Path(__file__).resolve().parents[1] / "golden"
 GOLDEN_JSON = GOLDEN_DIR / "scan-corpus.json"
