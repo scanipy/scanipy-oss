@@ -1,0 +1,32 @@
+# scanipy detector spec — taint DSL (DRAFT / v0). Schema: docs/dsl-reference.md
+id: python.deserialization.unsafe-deserialization
+name: Unsafe deserialization
+cwe: CWE-502
+severity: critical
+languages: [python]
+message: >
+  Untrusted input is deserialized with pickle or an unsafe YAML loader, which can
+  execute arbitrary code during loading. Never unpickle untrusted data; use a safe
+  format (JSON) or yaml.safe_load for YAML.
+metadata:
+  owasp: "A08:2021-Software and Data Integrity Failures"
+  references:
+    - https://cwe.mitre.org/data/definitions/502.html
+
+# Where untrusted data enters.
+sources:
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+
+# pickle has no string sanitizer; the safe YAML form is a different, safe sink
+# (yaml.safe_load), not a sanitizer of the input — so no sanitizers (P5).
+sanitizers: []
+
+# Where tainted data becomes dangerous: the serialized-data argument.
+sinks:
+  - { kind: call, pattern: "pickle.loads", args: [0] }
+  - { kind: call, pattern: "pickle.load", args: [0] }
+  - { kind: call, pattern: "yaml.load", args: [0] }
+
+propagators:
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }

@@ -1,0 +1,40 @@
+# scanipy detector spec — taint DSL (DRAFT / v0). Schema: docs/dsl-reference.md
+id: python.traversal.path-traversal
+name: Path traversal
+cwe: CWE-22
+severity: high
+languages: [python]
+message: >
+  Untrusted input is used as a filesystem path, letting an attacker escape the
+  intended directory with ".." sequences or absolute paths. Validate against an
+  allow-list and strip the directory component (e.g. os.path.basename), or use
+  werkzeug.utils.secure_filename on the untrusted name.
+metadata:
+  owasp: "A01:2021-Broken Access Control"
+  references:
+    - https://cwe.mitre.org/data/definitions/22.html
+
+# Where untrusted data enters.
+sources:
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+
+# These return a directory-stripped / validated name, neutralizing traversal.
+# Patterns are module-qualified: a bare local function happening to be named
+# "secure_filename" would not genuinely sanitize, and trusting it would be the
+# unsafe direction (a missed vuln) — so only the real library calls are listed (P5).
+sanitizers:
+  - { kind: call, pattern: "os.path.basename" }
+  - { kind: call, pattern: "werkzeug.utils.secure_filename" }
+
+# Where tainted data becomes dangerous: a path passed to a file operation.
+sinks:
+  - { kind: call, pattern: "open", args: [0] }
+  - { kind: call, pattern: "io.open", args: [0] }
+  - { kind: call, pattern: "os.remove", args: [0] }
+  - { kind: call, pattern: "os.unlink", args: [0] }
+
+# os.path.join carries the tainted component into the joined path.
+propagators:
+  - { kind: call, pattern: "os.path.join", flow: { from: any-arg, to: return } }
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }

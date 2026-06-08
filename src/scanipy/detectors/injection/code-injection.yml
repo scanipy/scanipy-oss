@@ -1,0 +1,33 @@
+# scanipy detector spec — taint DSL (DRAFT / v0). Schema: docs/dsl-reference.md
+id: python.injection.code-injection
+name: Python code injection
+cwe: CWE-94
+severity: critical
+languages: [python]
+message: >
+  Untrusted input reaches a dynamic code-execution primitive (eval / exec /
+  compile), letting an attacker run arbitrary Python. Never evaluate untrusted
+  input; parse it with ast.literal_eval or a dedicated parser, or remove the
+  dynamic execution entirely.
+metadata:
+  owasp: "A03:2021-Injection"
+  references:
+    - https://cwe.mitre.org/data/definitions/94.html
+
+# Where untrusted data enters.
+sources:
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+
+# eval/exec/compile have no string sanitizer that makes arbitrary code safe; the
+# fix is not to evaluate untrusted input at all, so no sanitizers are listed (P5).
+sanitizers: []
+
+# Where tainted data becomes dangerous: the code-string argument (index 0).
+sinks:
+  - { kind: call, pattern: "eval", args: [0] }
+  - { kind: call, pattern: "exec", args: [0] }
+  - { kind: call, pattern: "compile", args: [0] }
+
+propagators:
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }
