@@ -37,6 +37,11 @@ This is the **0.1.0 scaffold**. Be honest about it in code and docs.
 The next milestones are the **Python frontend**, the **DSL parser**, and the
 **taint engine** — owned by the `taint-engine` agent.
 
+**Building it:** the full v1 plan (working scan, 6 core detectors, intra-file
+interprocedural taint, → `0.2.0`) is in [PLAN.md](PLAN.md) — architecture, the
+102-task work breakdown, the dependency DAG / phased PR sequence, and acceptance
+gates. Detailed per-subsystem design notes: [docs/design/v1-design-notes.md](docs/design/v1-design-notes.md).
+
 ## 3. Repository map
 
 ```
