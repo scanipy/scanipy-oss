@@ -1,0 +1,165 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scanipy-oss"
+dynamic = ["version"]
+description = "Local, private, taint-tracking SAST for your code — the open-source edition of scanipy."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "The scanipy contributors" }]
+keywords = [
+    "sast",
+    "security",
+    "static-analysis",
+    "taint-analysis",
+    "vulnerability",
+    "scanner",
+    "python",
+    "appsec",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+dependencies = [
+    "click>=8.1",
+    "rich>=13.7",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+    "pre-commit>=3.7",
+    "build>=1.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/scanipy/scanipy-oss"
+Repository = "https://github.com/scanipy/scanipy-oss"
+Documentation = "https://github.com/scanipy/scanipy-oss/tree/main/docs"
+Issues = "https://github.com/scanipy/scanipy-oss/issues"
+"scanipy Cloud" = "https://scanipy.com"
+
+[project.scripts]
+scanipy = "scanipy.cli:main"
+
+# ---------------------------------------------------------------------------
+# Hatchling — build backend (src layout)
+# ---------------------------------------------------------------------------
+[tool.hatch.version]
+path = "src/scanipy/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scanipy"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/docs",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+    "/NOTICE",
+    "/CHANGELOG.md",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff — linter + formatter
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+# tests/fixtures holds intentionally-vulnerable sample programs (the true/false
+# positive corpus). They are analysis DATA, not project code — never lint them.
+extend-exclude = ["tests/fixtures"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "S",   # flake8-bandit (we are a security tool — eat our own dog food)
+    "C4",  # flake8-comprehensions
+    "PTH", # flake8-use-pathlib
+    "RUF", # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use asserts (S101) and don't need the bandit suite.
+"tests/**" = ["S"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["scanipy"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+# ---------------------------------------------------------------------------
+# Mypy — strict type checking on the package source
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+show_error_codes = true
+pretty = true
+# click/rich decorators are not fully typed; don't fail the build on them.
+disallow_untyped_decorators = false
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = ["--strict-markers", "-q"]
+markers = [
+    "unit: fast unit tests (no I/O)",
+    "integration: integration tests (real components, slower)",
+]
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["scanipy"]
+branch = true
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]

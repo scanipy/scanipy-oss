@@ -1,0 +1,34 @@
+# scanipy detector spec — taint DSL (DRAFT / v0). Schema: docs/dsl-reference.md
+id: python.injection.os-command
+name: OS command injection
+cwe: CWE-78
+severity: high
+languages: [python]
+message: >
+  Untrusted input reaches an OS command without sanitization, allowing an
+  attacker to execute arbitrary commands. Prefer a list argv with shell=False,
+  or quote inputs with shlex.quote.
+metadata:
+  owasp: "A03:2021-Injection"
+  references:
+    - https://cwe.mitre.org/data/definitions/78.html
+
+# Where untrusted data enters.
+sources:
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+
+# What neutralizes it (trusted in the safe direction only — principle P5).
+sanitizers:
+  - { kind: call, pattern: "shlex.quote" }
+
+# Where tainted data becomes dangerous.
+sinks:
+  - { kind: call, pattern: "os.system", args: [0] }
+  - { kind: call, pattern: "os.popen", args: [0] }
+  - { kind: call, pattern: "subprocess.*", when: { keyword: { shell: true } } }
+
+# How taint travels through intermediate calls.
+propagators:
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }
+  - { kind: call, pattern: "os.path.join", flow: { from: any-arg, to: return } }

@@ -1,0 +1,83 @@
+name: Bug report
+description: Report something in scanipy that behaves incorrectly.
+title: "bug: <short description>"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! scanipy is an early-stage,
+        local taint-tracking SAST CLI for Python — many subcommands are still
+        stubs, so first please confirm the behavior you hit isn't an
+        intentional not-yet-implemented stub (exit code 2).
+
+        Please do **not** paste proprietary source code. A minimal,
+        self-contained snippet that reproduces the issue is ideal.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+      placeholder: scanipy reported a finding on code that should be clean...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: >
+        Include the exact command you ran (e.g. `scanipy scan ./app`) and, if
+        possible, a minimal code snippet or fixture. Markdown is supported.
+      placeholder: |
+        1. Save the snippet below as app.py
+        2. Run: scanipy scan app.py --format json
+        3. Observe the output
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect scanipy to do?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What did scanipy actually do? Include the full output and any traceback.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: scanipy-version
+    attributes:
+      label: scanipy version
+      description: Output of `scanipy version` (or `scanipy --version`).
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: Output of `python --version`. scanipy supports 3.10–3.13.
+      placeholder: "3.12.3"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: OS and version (e.g. Ubuntu 24.04, macOS 14.5, Windows 11).
+      placeholder: "Ubuntu 24.04"
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Anything else that might help — config file, detector pack, environment notes.
+    validations:
+      required: false

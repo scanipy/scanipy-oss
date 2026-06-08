@@ -1,0 +1,40 @@
+# Defense-in-depth backstop: turns the check RED on a direct push to `main` that
+# did not come through the GitHub merge UI (or a known automation actor / an
+# explicit Revert). The AUTHORITATIVE control is a GitHub branch ruleset that
+# requires pull requests — see CONTRIBUTING.md > "Branch protection". This
+# workflow is a loud secondary signal, not a substitute for that ruleset.
+#
+# Caveat: "Rebase and merge" rewrites the committer to the PR author, so it will
+# trip this guard. Prefer "Squash and merge" or "Create a merge commit".
+name: enforce-pr-only-merges
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Reject direct pushes to main
+        run: |
+          committer="$(git log -1 --format='%ce')"
+          subject="$(git log -1 --format='%s')"
+          echo "Top commit committed by: $committer"
+          case "$committer" in
+            web-flow@github.com|noreply@github.com|*@users.noreply.github.com)
+              echo "Merged via GitHub — OK"; exit 0 ;;
+            *dependabot*|*renovate*|*github-actions*)
+              echo "Automation actor — OK"; exit 0 ;;
+          esac
+          case "$subject" in
+            Revert*) echo "Revert commit — OK"; exit 0 ;;
+          esac
+          echo "::error::Direct pushes to 'main' are not allowed — open a pull request."
+          exit 1
