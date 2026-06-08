@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/code-injection.py"
+                },
+                "region": {
+                  "startColumn": 13,
+                  "startLine": 7
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted input reaches a dynamic code-execution primitive (eval / exec / compile), letting an attacker run arbitrary Python. Never evaluate untrusted input; parse it with ast.literal_eval or a dedicated parser, or remove the dynamic execution entirely.\n"
+          },
+          "ruleId": "python.injection.code-injection"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/interproc-os-command.py"
+                },
+                "region": {
+                  "startColumn": 4,
+                  "startLine": 11
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted input reaches an OS command without sanitization, allowing an attacker to execute arbitrary commands. Prefer a list argv with shell=False, or quote inputs with shlex.quote.\n"
+          },
+          "ruleId": "python.injection.os-command"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/os-command.py"
+                },
+                "region": {
+                  "startColumn": 4,
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted input reaches an OS command without sanitization, allowing an attacker to execute arbitrary commands. Prefer a list argv with shell=False, or quote inputs with shlex.quote.\n"
+          },
+          "ruleId": "python.injection.os-command"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/path-traversal.py"
+                },
+                "region": {
+                  "startColumn": 9,
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted input is used as a filesystem path, letting an attacker escape the intended directory with \"..\" sequences or absolute paths. Validate against an allow-list and strip the directory component (e.g. os.path.basename), or use werkzeug.utils.secure_filename on the untrusted name.\n"
+          },
+          "ruleId": "python.traversal.path-traversal"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/sql.py"
+                },
+                "region": {
+                  "startColumn": 4,
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted input is interpolated into a SQL statement instead of being passed as a bound parameter, allowing SQL injection. Use parameterized queries, e.g. cursor.execute(sql, params).\n"
+          },
+          "ruleId": "python.injection.sql"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/ssrf.py"
+                },
+                "region": {
+                  "startColumn": 15,
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted input controls the URL of a server-side HTTP request, letting an attacker reach internal services or cloud metadata endpoints. Validate the URL against an allow-list of trusted hosts/schemes before requesting it.\n"
+          },
+          "ruleId": "python.ssrf.ssrf"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/unsafe-deserialization.py"
+                },
+                "region": {
+                  "startColumn": 11,
+                  "startLine": 14
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted input is deserialized with pickle or an unsafe YAML loader, which can execute arbitrary code during loading. Never unpickle untrusted data; use a safe format (JSON) or yaml.safe_load for YAML.\n"
+          },
+          "ruleId": "python.deserialization.unsafe-deserialization"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "corpus/vulnerable/xxe.py"
+                },
+                "region": {
+                  "startColumn": 11,
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Untrusted XML is parsed by a parser that resolves external entities, enabling file disclosure or SSRF via XXE. Parse untrusted XML with defusedxml, or disable entity resolution on the parser.\n"
+          },
+          "ruleId": "python.xxe.xxe"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://github.com/scanipy/scanipy-oss",
+          "name": "scanipy",
+          "rules": [],
+          "version": "<VERSION>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}
