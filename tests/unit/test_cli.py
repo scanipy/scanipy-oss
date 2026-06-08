@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Smoke tests for the 0.1.0 CLI skeleton.
+"""Smoke tests for the CLI surface.
 
-These assert the contract the scaffold guarantees today: help and version work
-and exit 0; the not-yet-implemented commands exit with ExitCode.ERROR (2).
+These assert the always-on contract: help and version exit 0, a bare invocation
+prints usage, and ``scan`` / ``rules`` are now real commands (no longer stubs).
+The full behavioral matrix (findings, exit codes, formats, config precedence)
+lives in ``tests/integration/test_cli.py``.
 """
 
 from __future__ import annotations
@@ -41,18 +43,21 @@ def test_version_flag(runner: CliRunner) -> None:
     assert __version__ in result.output
 
 
-def test_scan_is_stubbed(runner: CliRunner, tmp_path: Path) -> None:
+def test_scan_empty_dir_is_clean(runner: CliRunner, tmp_path: Path) -> None:
+    # scan is real now: an empty directory has no findings and exits 0.
     result = runner.invoke(cli, ["scan", str(tmp_path)])
-    assert result.exit_code == 2
+    assert result.exit_code == 0
+    assert "No findings." in result.output
 
 
-def test_rules_list_is_stubbed(runner: CliRunner) -> None:
+def test_rules_list_is_real(runner: CliRunner) -> None:
     result = runner.invoke(cli, ["rules", "list"])
-    assert result.exit_code == 2
+    assert result.exit_code == 0
+    assert "python.injection.os-command" in result.output
 
 
-def test_rules_validate_is_stubbed(runner: CliRunner, tmp_path: Path) -> None:
+def test_rules_validate_rejects_bad_spec(runner: CliRunner, tmp_path: Path) -> None:
     spec = tmp_path / "spec.yml"
-    spec.write_text("id: example\n")
+    spec.write_text("id: example\n")  # missing required fields
     result = runner.invoke(cli, ["rules", "validate", str(spec)])
     assert result.exit_code == 2

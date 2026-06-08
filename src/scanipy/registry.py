@@ -11,9 +11,23 @@ records. Detection logic lives entirely in those specs, not here (principle P4).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from scanipy.dsl import DetectorSpec, DSLError, load_spec_file
+
+
+class UnknownDetectorError(ValueError):
+    """A requested detector id is not among the bundled specs.
+
+    Carries the offending ids so the CLI can report them precisely and exit ``2``.
+    """
+
+    def __init__(self, unknown: Sequence[str], available: Sequence[str]) -> None:
+        self.unknown: tuple[str, ...] = tuple(unknown)
+        self.available: tuple[str, ...] = tuple(available)
+        joined = ", ".join(self.unknown)
+        super().__init__(f"unknown detector id(s): {joined}")
 
 
 def builtin_detectors_path() -> Path:
@@ -53,3 +67,25 @@ def load_builtin_detectors() -> tuple[DetectorSpec, ...]:
         seen[spec.id] = path
         specs.append(spec)
     return tuple(sorted(specs, key=lambda s: s.id))
+
+
+def load_detector_specs(selected: Sequence[str] | None = None) -> tuple[DetectorSpec, ...]:
+    """Load the builtin detectors, optionally filtered to ``selected`` ids.
+
+    With ``selected`` empty or ``None`` this is exactly
+    :func:`load_builtin_detectors` (the full, sorted, unique pack). Otherwise it
+    returns only the specs whose ``id`` is in ``selected``, preserving the sorted
+    order (P3). Any id in ``selected`` that is not a bundled detector raises
+    :class:`UnknownDetectorError` listing the unknown ids — a typo'd ``--detectors``
+    fails loudly rather than silently scanning with an empty pack (P5/P7).
+    """
+    builtins = load_builtin_detectors()
+    if not selected:
+        return builtins
+    available = {spec.id for spec in builtins}
+    requested = list(dict.fromkeys(selected))  # de-dup, preserve order
+    unknown = sorted(rid for rid in requested if rid not in available)
+    if unknown:
+        raise UnknownDetectorError(unknown, sorted(available))
+    wanted = set(requested)
+    return tuple(spec for spec in builtins if spec.id in wanted)

@@ -64,4 +64,4 @@ class SarifReporter(Reporter):
                 }
             ],
         }
-        return json.dumps(log, indent=2)
+        return json.dumps(log, indent=2, sort_keys=True)
