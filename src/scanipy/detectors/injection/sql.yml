@@ -1,0 +1,29 @@
+# scanipy detector spec — taint DSL (DRAFT / v0). Schema: docs/dsl-reference.md
+id: python.injection.sql
+name: SQL injection
+cwe: CWE-89
+severity: high
+languages: [python]
+message: >
+  Untrusted input is interpolated into a SQL statement instead of being passed
+  as a bound parameter, allowing SQL injection. Use parameterized queries, e.g.
+  cursor.execute(sql, params).
+metadata:
+  owasp: "A03:2021-Injection"
+  references:
+    - https://cwe.mitre.org/data/definitions/89.html
+
+sources:
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+
+# A bound-parameter call is the fix, not a sanitizer of the string itself, so
+# this detector ships with no string sanitizers (see docs/dsl-reference.md).
+sanitizers: []
+
+sinks:
+  - { kind: call, pattern: "*.cursor.execute", args: [0] }
+  - { kind: call, pattern: "*.execute", args: [0] }
+
+propagators:
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }

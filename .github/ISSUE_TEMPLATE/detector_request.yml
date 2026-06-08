@@ -1,0 +1,97 @@
+name: Detector request
+description: Propose a new taint detector (vulnerability class) for scanipy.
+title: "detector: <vulnerability class>"
+labels: ["detector", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a detector! scanipy detectors are declarative YAML
+        specs describing **sources → sinks → sanitizers** (see the DSL reference
+        in `docs/dsl-reference.md`).
+
+        Every detector must ship **both** a true-positive (vulnerable) fixture
+        and a true-negative (safe/sanitized) fixture — this is principle P5, and
+        sanitizer soundness is one-sided (a missed sanitizer is a false
+        positive, never a silently-suppressed real vuln). So the two snippets
+        below are required: they become the detector's TP/TN fixtures.
+  - type: input
+    id: vuln-class
+    attributes:
+      label: Vulnerability class
+      description: What kind of weakness should this detector find?
+      placeholder: "OS command injection"
+    validations:
+      required: true
+  - type: input
+    id: cwe
+    attributes:
+      label: CWE identifier
+      description: The relevant CWE (https://cwe.mitre.org/).
+      placeholder: "CWE-78"
+    validations:
+      required: true
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      description: >
+        The OSS edition is Python-only (principle P7), so this is Python today —
+        noted here for clarity and forward compatibility.
+      value: "Python"
+    validations:
+      required: true
+  - type: textarea
+    id: vulnerable-snippet
+    attributes:
+      label: Example VULNERABLE snippet (true-positive fixture)
+      description: >
+        A minimal, self-contained snippet that scanipy SHOULD flag. Untrusted
+        data must flow from a source to a sink without sanitization.
+      render: python
+      placeholder: |
+        import subprocess
+        from flask import request
+
+        def handler():
+            cmd = request.args["cmd"]
+            subprocess.run(cmd, shell=True)  # tainted -> sink
+    validations:
+      required: true
+  - type: textarea
+    id: safe-snippet
+    attributes:
+      label: Example SAFE / sanitized snippet (true-negative fixture)
+      description: >
+        A minimal, self-contained snippet that scanipy should NOT flag — the
+        same flow but properly sanitized, validated, or otherwise safe.
+      render: python
+      placeholder: |
+        import shlex
+        import subprocess
+        from flask import request
+
+        def handler():
+            cmd = request.args["cmd"]
+            subprocess.run(shlex.split(cmd))  # no shell, args list -> safe
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References / links
+      description: >
+        Links that back the detection logic — CWE pages, OWASP guidance, CVEs,
+        library docs, or prior art.
+      placeholder: |
+        - https://owasp.org/www-community/attacks/Command_Injection
+        - https://cwe.mitre.org/data/definitions/78.html
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Known sanitizers, edge cases, expected false-positive traps, etc.
+    validations:
+      required: false

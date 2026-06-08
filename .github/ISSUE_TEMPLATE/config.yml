@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/scanipy/scanipy-oss/discussions
+    about: Have a question, idea, or want to share how you use scanipy? Start a discussion.
+  - name: Report a security vulnerability
+    url: https://github.com/scanipy/scanipy-oss/blob/main/SECURITY.md
+    about: Please do not open a public issue for security problems — follow our security policy instead.
