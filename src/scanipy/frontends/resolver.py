@@ -37,6 +37,29 @@ _RELATIVE = "."
 # are unknown, so this entry never resolves a concrete reference.
 _STAR = "*"
 
+# ``ast`` statement nodes that contain nested statement bodies but do **not**
+# open a new scope. Imports nested inside these blocks bind in the *enclosing*
+# scope, so :func:`build_import_table` must recurse into their bodies to
+# canonicalize them (otherwise ``if cond: import os as o`` is a silent false
+# negative). Nested ``def``/``async def``/``class`` build their own tables and are
+# deliberately *not* descended into here.
+_CONTROL_FLOW_STMTS: tuple[type[ast.stmt], ...] = (
+    ast.If,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.With,
+    ast.AsyncWith,
+    ast.Try,
+)
+# ``except*`` (PEP 654) is 3.11+; include it when present so imports nested in an
+# ``except*`` body are still canonicalized. Same body/handler shape as ``Try``.
+# ``getattr`` avoids a static reference to ``ast.TryStar`` (absent on 3.10, which
+# mypy targets via ``python_version``).
+_try_star = getattr(ast, "TryStar", None)
+if _try_star is not None:  # pragma: no cover - version-dependent
+    _CONTROL_FLOW_STMTS = (*_CONTROL_FLOW_STMTS, _try_star)
+
 
 def _loc_of(node: ast.AST, *, file: str = "<unknown>") -> Location:
     """Build a :class:`Location` from an ``ast`` node (1-based line, 0-based col)."""
@@ -75,16 +98,50 @@ def build_import_table(
       canonical marker (never claimed as resolvable).
     * ``from m import *`` is recorded as a star marker and never resolves names.
 
-    Only top-level statements of ``nodes`` are inspected; nested scopes build
-    their own tables.
+    Statements are inspected in source order, **recursing into control-flow
+    bodies** (``if``/``for``/``while``/``with``/``try`` and their ``orelse`` /
+    ``finalbody`` / ``except`` handlers) because imports nested in those blocks
+    bind in the enclosing scope. Recursion stops at scope boundaries
+    (``def``/``async def``/``class``/``lambda``); nested scopes build their own
+    tables.
     """
     entries: list[ImportEntry] = []
+    _collect_imports(nodes, entries, file=file)
+    return ImportTable(entries=tuple(entries))
+
+
+def _collect_imports(
+    nodes: Iterable[ast.stmt],
+    entries: list[ImportEntry],
+    *,
+    file: str,
+) -> None:
+    """Append the import entries introduced by ``nodes`` (recursing control flow)."""
     for node in nodes:
         if isinstance(node, ast.Import):
             entries.extend(_entries_from_import(node, file=file))
         elif isinstance(node, ast.ImportFrom):
             entries.extend(_entries_from_import_from(node, file=file))
-    return ImportTable(entries=tuple(entries))
+        elif isinstance(node, _CONTROL_FLOW_STMTS):
+            _collect_imports(_control_flow_bodies(node), entries, file=file)
+        # def/async def/class open a new scope: their imports bind there, not
+        # here, so we do not descend (they build their own tables).
+
+
+def _control_flow_bodies(node: ast.stmt) -> list[ast.stmt]:
+    """Flatten every nested statement list of a control-flow node, in source order.
+
+    Covers ``body``, ``orelse``, ``finalbody`` (whichever the node has) plus each
+    ``except`` handler's body for ``Try`` (and ``except*`` for ``TryStar`` on
+    3.11+). Loop/with target bindings are not statements and never carry imports.
+    """
+    out: list[ast.stmt] = []
+    out.extend(getattr(node, "body", []))
+    for handler in getattr(node, "handlers", []):
+        out.extend(handler.body)
+    out.extend(getattr(node, "orelse", []))
+    out.extend(getattr(node, "finalbody", []))
+    return out
 
 
 def _entries_from_import(node: ast.Import, *, file: str) -> list[ImportEntry]:

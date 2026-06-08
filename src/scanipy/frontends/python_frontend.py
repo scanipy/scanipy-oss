@@ -97,8 +97,13 @@ class PythonFrontend(Frontend):
         """Parse ``path`` into an :class:`IRModule`, or ``None`` on any failure.
 
         Reading uses :func:`tokenize.open` (PEP-263 encoding detection). Syntax,
-        decoding, value, and OS errors are swallowed and reported as ``None`` so
-        the scan driver can skip the file without crashing.
+        decoding, value, OS, and recursion errors are swallowed and reported as
+        ``None`` so the scan driver can skip the file without crashing.
+
+        A deeply-nested but otherwise valid file can exceed CPython's recursion
+        limit in either ``ast.parse`` or lowering; both sites catch
+        :class:`RecursionError` so the file is skipped, never crashed (honoring
+        the never-raises contract).
         """
         try:
             with tokenize.open(path) as handle:
@@ -107,10 +112,16 @@ class PythonFrontend(Frontend):
             return None
         try:
             tree = ast.parse(source, filename=str(path))
-        except (SyntaxError, ValueError):
-            # ValueError covers source containing null bytes.
+        except (SyntaxError, ValueError, RecursionError):
+            # ValueError covers source containing null bytes; RecursionError covers
+            # input nested deeper than the interpreter's recursion limit.
             return None
-        return _Lowerer(str(path)).lower_module(tree)
+        try:
+            return _Lowerer(str(path)).lower_module(tree)
+        except RecursionError:
+            # Lowering recurses per nesting level; a deeply-nested tree that parsed
+            # successfully can still exhaust the stack here. Skip, don't crash.
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -631,6 +642,14 @@ class _CFGBuilder:
         return current
 
     def _emit_stmt(self, stmt: ast.stmt, heads: list[int]) -> list[int]:
+        if isinstance(stmt, ast.ClassDef):
+            # A class body is *not* a CFG scope of its own (only its methods are,
+            # collected separately as IRFunctions). Inline its statements into the
+            # enclosing CFG so class-level sources/sinks (``y = f(input())``) are
+            # captured; nested ``def`` methods lower to nothing here (their scope is
+            # built by ``_collect_scopes``). Names resolve through the *enclosing*
+            # table — see the class-body-aliasing note in docs/ir-reference.md (P7).
+            return self._emit_seq(stmt.body, heads)
         if isinstance(stmt, _CONTROL_FLOW):
             return self._emit_control(stmt, heads)
         if isinstance(stmt, (ast.Return, ast.Break, ast.Continue, ast.Raise)):
@@ -863,9 +882,11 @@ class _CFGBuilder:
             ]
         if isinstance(stmt, (ast.Global, ast.Nonlocal, ast.Pass)):
             return []
-        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            # Definitions create scopes (already collected) or classes; nothing to
-            # add to the enclosing block's data flow here.
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # A function definition opens its own scope (collected in pass 1 and
+            # lowered to its own IRFunction); nothing flows into the enclosing
+            # block here. (``ClassDef`` is handled earlier in ``_emit_stmt``: its
+            # body is inlined into the enclosing CFG.)
             return []
         # Unknown statement: surface as an opaque expression statement.
         unknown = IRUnknown(raw_repr=type(stmt).__name__, location=loc)

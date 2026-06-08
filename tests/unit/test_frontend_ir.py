@@ -163,6 +163,32 @@ def test_resolver_unit_non_name_root() -> None:
     assert canonical_dotted(expr, table) is None
 
 
+@pytest.mark.unit
+def test_import_nested_in_if_is_canonicalized(tmp_path: Path) -> None:
+    # Regression: imports guarded by control flow were never canonicalized
+    # (silent false negative). `if True: import os.path as p` must still resolve
+    # `p.join(x)` to `os.path.join`.
+    module = _parse(
+        tmp_path,
+        "def f(x):\n    if True:\n        import os.path as p\n    p.join(x)\n",
+    )
+    paths = [c.callee_path for c in _calls(_scope(module, "f"))]
+    assert "os.path.join" in paths
+
+
+@pytest.mark.unit
+def test_import_nested_in_try_is_canonicalized(tmp_path: Path) -> None:
+    # Regression: an import nested in a `try` body binds in the enclosing scope;
+    # `from os import system as s` must resolve `s(x)` to `os.system`.
+    module = _parse(
+        tmp_path,
+        "def f(x):\n    try:\n        from os import system as s\n    except Exception:\n"
+        "        pass\n    s(x)\n",
+    )
+    paths = [c.callee_path for c in _calls(_scope(module, "f"))]
+    assert "os.system" in paths
+
+
 # ---------------------------------------------------------------------------
 # Calls / keywords / args
 # ---------------------------------------------------------------------------
@@ -255,6 +281,34 @@ def test_nested_scope_comprehension_lambda(tmp_path: Path) -> None:
         isinstance(n, ir.IRAssign) and isinstance(n.targets[0], ir.IRNameTarget)
         for n in _all_in_scope(listcomp)
     )
+
+
+@pytest.mark.unit
+def test_classdef_body_inlined_into_enclosing_scope(tmp_path: Path) -> None:
+    # Regression: ClassDef statements were silently dropped. A class-level call
+    # (a potential source/sink) must appear in the enclosing scope's lowered CFG.
+    module = _parse(tmp_path, "class C:\n    y = f(input())\n")
+    paths = [c.callee_path for c in _calls(module.module_scope)]
+    assert "f" in paths
+    assert "input" in paths
+
+
+@pytest.mark.unit
+def test_classdef_methods_remain_own_scope(tmp_path: Path) -> None:
+    # The class body is inlined (no class scope), but each method stays its own
+    # IRFunction; the class-level call is still captured in the enclosing scope.
+    module = _parse(
+        tmp_path,
+        "class C:\n    y = f(input())\n    def m(self, x):\n        os.system(x)\n",
+    )
+    quals = [fn.qualname for fn in module.functions]
+    assert "<module>" in quals
+    assert "m" in quals  # the method is its own scope
+    assert "C" not in quals  # the class body is not a scope of its own
+    # Class-level call captured in the enclosing (module) scope.
+    assert "f" in [c.callee_path for c in _calls(module.module_scope)]
+    # The method body lowers its own call.
+    assert any(c.callee_path == "os.system" for c in _calls(_scope(module, "m")))
 
 
 # ---------------------------------------------------------------------------
@@ -457,6 +511,19 @@ def test_null_bytes_returns_none(tmp_path: Path) -> None:
 @pytest.mark.unit
 def test_missing_file_returns_none(tmp_path: Path) -> None:
     assert PythonFrontend().parse(tmp_path / "does_not_exist.py") is None
+
+
+@pytest.mark.unit
+def test_deeply_nested_returns_none(tmp_path: Path) -> None:
+    # Regression: a parseable-but-deeply-nested file can raise RecursionError
+    # while lowering, contradicting the never-raises contract. ``parse`` must catch
+    # it and return ``None`` (skip the file) rather than crash. A long attribute
+    # chain (``a.b.b.b...``) parses fine but recurses one frame per level in
+    # ``lower_expr`` — past the default ~1000 limit it would crash without the fix.
+    depth = 3000
+    path = tmp_path / "deep.py"
+    path.write_text("x = a" + ".b" * depth + "\n")
+    assert PythonFrontend().parse(path) is None
 
 
 @pytest.mark.unit

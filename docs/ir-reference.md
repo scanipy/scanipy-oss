@@ -31,7 +31,10 @@ engine can build a witness without ever re-walking `ast`.
   scope, including `module_scope` at index 0, in source order. `parent_index`
   and `scope_index` references index into `functions`.
 * **`IRFunction`** — one scope: the module body, a `def`/`async def`, a `lambda`,
-  or a comprehension/generator. Carries `name`, dotted `qualname`, `params`,
+  or a comprehension/generator. A `class` body is **not** its own scope: its
+  statements are inlined into the enclosing scope's CFG (so class-level
+  sources/sinks are seen), while each method is its own `IRFunction`. Carries
+  `name`, dotted `qualname`, `params`,
   the CFG (`body_blocks` + `entry_block_index`), `parent_index` (closure link;
   `None` only for `<module>`), `is_lambda`, `is_async`, `location`, and
   `local_imports` (this scope's import table chained ahead of its parents').
@@ -107,10 +110,16 @@ positions are populated when `ast` provides them (Python ≥ 3.10).
 
 ## Import / alias canonicalization
 
-`resolver.build_import_table` records every binding import in source order, and
+`resolver.build_import_table` records every binding import in source order —
+**including imports nested inside control-flow blocks** (`if`/`for`/`while`/
+`with`/`try`, their `orelse`/`finalbody`, and `except` handlers) — and
 `resolver.canonical_dotted` rewrites a name/attribute chain's *root* through the
 table. This is the load-bearing step that prevents silent false negatives: all
-four import styles canonicalize to the **same** dotted path.
+four import styles canonicalize to the **same** dotted path, whether the import
+is at module top level or guarded by control flow (e.g. `if cond: import os as o`
+then `o.system(x)` still resolves to `os.system`). Recursion stops at scope
+boundaries (`def`/`async def`/`class`/`lambda`), which build their own chained
+tables.
 
 | Source | `callee_path` |
 |---|---|
@@ -152,13 +161,27 @@ future refinement.)
 ## Error / skip contract
 
 `PythonFrontend.parse(path)` returns `None` — **never raises** — on a
-`SyntaxError`, `UnicodeDecodeError`, `OSError` (missing/unreadable file), or
-`ValueError` (e.g. source containing a null byte). The scan driver skips the
-file and may log `skipped <path>`; a single bad file never aborts a scan.
+`SyntaxError`, `UnicodeDecodeError`, `OSError` (missing/unreadable file),
+`ValueError` (e.g. source containing a null byte), or `RecursionError` (a
+parseable-but-deeply-nested file that exceeds the interpreter's recursion limit
+in either `ast.parse` or lowering). The scan driver skips the file and may log
+`skipped <path>`; a single bad file never aborts a scan.
 
 ## Documented unsoundness & out of scope (P7)
 
-The IR is **best-effort, not sound**. Honest limitations:
+The IR is **best-effort, not sound**. First, what *is* now handled (so this list
+stays honest about its own scope):
+
+* **Imports nested in control flow** (`if cond: import os as o`, an import inside
+  a `try`/`with`/`for`/`while` body, `orelse`, `finalbody`, or `except` handler)
+  **are** canonicalized — `build_import_table` recurses into those bodies, so a
+  guarded import no longer produces a silent false negative.
+* **Class-level sources/sinks are captured.** A class body is inlined into the
+  enclosing scope's CFG (it is not its own taint scope), so `class C: y =
+  f(input())` surfaces the call. Methods remain their own `IRFunction` (parented
+  to the class's enclosing scope) and are lowered normally.
+
+Honest remaining limitations:
 
 * **Aliasing through mutation.** Taint is tracked per access path, not per heap
   object: `b = a; sink(b)` is caught, but mutating a shared object through one
@@ -166,9 +189,15 @@ The IR is **best-effort, not sound**. Honest limitations:
 * **Dynamic subscripts.** Only constant indices (`a[0]`, `d['k']`) are tracked
   precisely (`is_const_index=True`); a dynamic index is conservative
   (`is_const_index=False`) and the engine keeps the whole container tainted.
-* **Dynamic / star / relative imports.** `from m import *` is recorded as an
-  opaque marker and resolves no names; relative imports (`from . import x`) are
-  recorded but not resolved to an absolute dotted path (no misleading canonical).
+* **Star / relative imports.** `from m import *` is recorded as an opaque marker
+  and resolves no names; relative imports (`from . import x`) are recorded but
+  not resolved to an absolute dotted path (no misleading canonical).
+* **Class-body import aliasing.** Because a class body is inlined into the
+  enclosing scope, an import *inside* a class body resolves through the
+  *enclosing* table, not a per-class one: `class C: import os as o; x =
+  o.system(...)` will not canonicalize `o` to `os` (an uncommon shape; building a
+  per-class table is out of scope for v1). Module/function-level aliased imports
+  are unaffected.
 * **Implicit / control-dependence flows.** `if tainted: x = "a"` is *not* tracked
   — only explicit data flow is modeled. Tracking implicit flows explodes false
   positives.
@@ -176,6 +205,10 @@ The IR is **best-effort, not sound**. Honest limitations:
   free-variable taint across the closure boundary is not propagated in v1.
 * **`match` statements & some async constructs.** `match`-case patterns and
   unmodeled expressions (`await`, `yield`) lower to `IRUnknown`.
+* **Deeply-nested files are skipped, not analyzed.** A parseable file nested
+  deeper than the interpreter's recursion limit raises `RecursionError` in
+  `ast.parse` or lowering; `parse()` catches it and returns `None` (the file is
+  skipped rather than crashing the scan — see the error/skip contract above).
 
 P5's one-sidedness covers **sanitizers** only (a missing sanitizer is noise, a
 false positive — never a silently-suppressed real vulnerability); it is *not* a
