@@ -42,10 +42,8 @@ Preferred channel:
 
 Fallback channel:
 
-- **Email:** `security@scanipy.dev`
-  > ⚠️ **Placeholder — to be confirmed.** This address is part of an early
-  > scaffold and may not yet be monitored. Until it's confirmed, the GitHub
-  > private advisory flow above is the reliable channel.
+- **Email:** `security@scanipy.com` — the GitHub private advisory flow above is
+  preferred, but this address works too.
 
 When you report, it helps a lot if you can include:
 

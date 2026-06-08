@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Local, private, taint-tracking SAST for your code.</strong><br>
-  The open-source edition of <a href="https://scanipy.dev">scanipy</a>.
+  The open-source edition of <a href="https://scanipy.com">scanipy</a>.
 </p>
 
 <p align="center">
@@ -96,7 +96,7 @@ Full schema: [docs/dsl-reference.md](docs/dsl-reference.md). Adding coverage:
 ## scanipy Cloud
 
 scanipy OSS is a single-language, local CLI. For teams that need more,
-[**scanipy Cloud**](https://scanipy.dev) *(link is a placeholder)* adds
+[**scanipy Cloud**](https://scanipy.com) adds
 multi-language interprocedural taint analysis, pull-request and CI integration,
 finding deduplication and baselines across many repositories, and a multi-tenant
 dashboard with auditable provenance. The OSS CLI is the free taste; the platform

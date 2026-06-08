@@ -57,7 +57,7 @@ Homepage = "https://github.com/scanipy/scanipy-oss"
 Repository = "https://github.com/scanipy/scanipy-oss"
 Documentation = "https://github.com/scanipy/scanipy-oss/tree/main/docs"
 Issues = "https://github.com/scanipy/scanipy-oss/issues"
-"scanipy Cloud" = "https://scanipy.dev"
+"scanipy Cloud" = "https://scanipy.com"
 
 [project.scripts]
 scanipy = "scanipy.cli:main"

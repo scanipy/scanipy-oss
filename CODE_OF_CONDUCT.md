@@ -30,8 +30,8 @@ discussions) and when an individual represents the project in public spaces.
 
 ## Enforcement
 
-Report unacceptable behavior to the maintainers at **conduct@scanipy.dev**
-*(placeholder — confirm before launch)*. Reports are reviewed and investigated
+Report unacceptable behavior to the maintainers at **oss@scanipy.com**. Reports
+are reviewed and investigated
 promptly and fairly, and reporters' privacy is respected. Maintainers may take
 any action they deem appropriate, up to and including a temporary or permanent
 ban from the project.
