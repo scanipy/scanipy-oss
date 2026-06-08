@@ -401,7 +401,12 @@ def _finalize(raw: list[Finding]) -> list[Finding]:
 
 
 def _dedup_key(finding: Finding) -> tuple[str, str, str]:
-    """Dedup key: ``(detector_id, sink location, source-start location)``."""
+    """Dedup key: ``(detector_id, sink location, source-start location)``.
+
+    Witnesses are source-first (P2): ``witness[0]`` is always the true SOURCE
+    step, so its location is the real source-start used to dedup findings that
+    share a detector and sink but originate at the same source.
+    """
     sink = _loc_str(finding.location)
     source = finding.witness[0].location if finding.witness else finding.location
     return (finding.detector_id, sink, _loc_str(source))

@@ -138,7 +138,93 @@ def test_in_body_source_reaches_caller_via_return(tmp_path: Path) -> None:
         """,
     )
     assert len(findings) == 1
-    assert findings[0].witness[-1].role is WitnessRole.SINK
+    roles = [w.role for w in findings[0].witness]
+    # source (input, in callee) -> propagator (return-via-call hop) -> sink (caller)
+    assert roles == [WitnessRole.SOURCE, WitnessRole.PROPAGATOR, WitnessRole.SINK]
+    assert findings[0].witness[0].role is WitnessRole.SOURCE
+    assert "input" in findings[0].witness[0].description
+    assert "os.system" in findings[0].witness[-1].description
+
+
+def test_single_wrapper_return_witness_is_source_first(tmp_path: Path) -> None:
+    # (a) A wrapper that RETURNS a tainted source must produce a source-first
+    # witness: SOURCE(input) -> call hop -> SINK(os.system). Regression for the
+    # PROPAGATOR-before-SOURCE splice bug (P2).
+    findings = _analyze(
+        tmp_path,
+        """
+        import os
+        def get():
+            return input()
+        def main():
+            os.system(get())
+        """,
+    )
+    assert len(findings) == 1
+    roles = [w.role for w in findings[0].witness]
+    assert roles == [WitnessRole.SOURCE, WitnessRole.PROPAGATOR, WitnessRole.SINK]
+    assert "input" in findings[0].witness[0].description
+    assert "os.system" in findings[0].witness[-1].description
+
+
+def test_two_wrappers_return_witness_is_source_first(tmp_path: Path) -> None:
+    # (b) Two nested return-wrappers. The SOURCE must stay first and the SINK
+    # last, with both call hops between in data-flow order (inner get hop before
+    # outer mid hop) -- no SOURCE buried mid-chain.
+    findings = _analyze(
+        tmp_path,
+        """
+        import os
+        def get():
+            return input()
+        def mid():
+            return get()
+        def main():
+            os.system(mid())
+        """,
+    )
+    assert len(findings) == 1
+    roles = [w.role for w in findings[0].witness]
+    assert roles == [
+        WitnessRole.SOURCE,
+        WitnessRole.PROPAGATOR,
+        WitnessRole.PROPAGATOR,
+        WitnessRole.SINK,
+    ]
+    assert "input" in findings[0].witness[0].description
+    assert "os.system" in findings[0].witness[-1].description
+    # No SOURCE step anywhere but the head.
+    assert [w.role for w in findings[0].witness[1:]].count(WitnessRole.SOURCE) == 0
+
+
+def test_source_return_fed_into_param_sink_wrapper(tmp_path: Path) -> None:
+    # (c) Mixed: a source-return wrapper feeds a param-sink wrapper. The witness
+    # must still be SOURCE first, SINK last, propagators between.
+    findings = _analyze(
+        tmp_path,
+        """
+        import os
+        def get():
+            return input()
+        def sink_wrap(p):
+            os.system(p)
+        def main():
+            sink_wrap(get())
+        """,
+    )
+    assert len(findings) == 1
+    roles = [w.role for w in findings[0].witness]
+    assert roles[0] is WitnessRole.SOURCE
+    assert roles[-1] is WitnessRole.SINK
+    assert all(r is WitnessRole.PROPAGATOR for r in roles[1:-1])
+    assert roles == [
+        WitnessRole.SOURCE,
+        WitnessRole.PROPAGATOR,
+        WitnessRole.PROPAGATOR,
+        WitnessRole.SINK,
+    ]
+    assert "input" in findings[0].witness[0].description
+    assert "os.system" in findings[0].witness[-1].description
 
 
 def test_self_flow_method_receiver(tmp_path: Path) -> None:

@@ -446,8 +446,14 @@ def _apply_summary(
             # introduces taint for its spec in the caller. (An in-body source that
             # reaches an in-body sink is emitted intraprocedurally, not summarized.)
             if flow.dst_kind == "return" and flow.spec_id is not None:
-                base = make_step(WitnessRole.PROPAGATOR, call.location, f"call {call.callee_path}")
-                chain = (base, *flow.fragment)
+                # The callee's SOURCE lives at the head of ``flow.fragment``; the
+                # call hop is appended AFTER it so the spliced witness stays
+                # source-first (P2). This composes for multi-hop wrappers because
+                # ``_return_flow`` re-embeds the prior source-first chain as the
+                # next ``fragment``, so each outer application appends its own hop
+                # at the end, leaving the SOURCE first and propagators in
+                # data-flow order (innermost call hop -> outermost).
+                chain = (*flow.fragment, call_step)
                 out.add(
                     TaintLabel(
                         spec_id=flow.spec_id,
