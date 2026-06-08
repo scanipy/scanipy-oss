@@ -1,0 +1,34 @@
+# scanipy detector spec — taint DSL (DRAFT / v0). Schema: docs/dsl-reference.md
+id: python.xxe.xxe
+name: XML external entity (XXE) injection
+cwe: CWE-611
+severity: high
+languages: [python]
+message: >
+  Untrusted XML is parsed by a parser that resolves external entities, enabling
+  file disclosure or SSRF via XXE. Parse untrusted XML with defusedxml, or disable
+  entity resolution on the parser.
+metadata:
+  owasp: "A05:2021-Security Misconfiguration"
+  references:
+    - https://cwe.mitre.org/data/definitions/611.html
+
+# Where untrusted data enters.
+sources:
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+
+# The fix is to parse with defusedxml (a different, safe sink) rather than to
+# clean the XML string, so no string sanitizers are listed (P5).
+sanitizers: []
+
+# Where tainted data becomes dangerous: untrusted XML reaching an unsafe parser.
+# Patterns are module-qualified (not "*.parse") so a defusedxml call never matches.
+sinks:
+  - { kind: call, pattern: "lxml.etree.*", args: [0] }
+  - { kind: call, pattern: "xml.etree.ElementTree.*", args: [0] }
+  - { kind: call, pattern: "xml.sax.parseString", args: [0] }
+  - { kind: call, pattern: "xml.dom.minidom.parseString", args: [0] }
+
+propagators:
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }

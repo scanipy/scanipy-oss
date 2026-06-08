@@ -288,6 +288,51 @@ under `tests/fixtures/python/{vulnerable,safe}/`. See
 
 ---
 
+## v1 known limitations (catalog scope, P7)
+
+The bundled v1 catalog is written entirely in the DSL surface above. A few
+vulnerability shapes are **not expressible** with the v1 taint engine and DSL;
+they are documented here rather than shipped as dead or misleading specs (P7).
+
+- **Safe-loader-as-keyword is a false positive risk.** A detector cannot tell
+  `yaml.load(data)` (unsafe) from `yaml.load(data, Loader=SafeLoader)` (safe):
+  both match the `yaml.load` sink, and the `when: {keyword: …}` constraint only
+  asserts a literal *equals* a value — it cannot assert that a *safe* loader is
+  present. The `unsafe-deserialization` detector therefore flags **both**, so the
+  recommended safe form in the bundled true-negative fixture is the distinct safe
+  sink `yaml.safe_load(data)` (never matched), not `yaml.load(..., Loader=…)`.
+  Treating `yaml.load(data, Loader=SafeLoader)` as a finding is an accepted FP
+  (noise, never a missed vuln — P5).
+
+- **"Presence" sinks (taint-independent flags) are out of scope.** The engine
+  only emits a finding when *tainted* data reaches a checked argument. A
+  vulnerability whose danger is the mere **presence** of an insecure option —
+  independent of any tainted value — cannot be expressed. The canonical example
+  is **TLS verification disabled** (`requests.get(url, verify=False)`, CWE-295):
+  the risk is `verify=False` itself, even for a constant `url` that carries no
+  taint. A `when: {keyword: {verify: false}}` sink would only fire when taint
+  *also* reaches a positional URL argument, which collapses into SSRF and misses
+  the textbook constant-URL case. `tls-verify-disabled` is therefore **deferred**
+  until the engine grows a non-taint *presence-sink* primitive — it is not shipped
+  as a dead spec.
+
+- **Application-specific sanitizers can't be pattern-matched.** Some safe forms
+  are validation logic, not a callable to name. SSRF is fixed by an allow-list
+  host check, which is application code, not a library function — so the SSRF
+  detector ships **no** sanitizer, and its true-negative fixture demonstrates the
+  *untainted-input* case (a constant URL) rather than a sanitizer. A real but
+  unrecognized allow-list check yields a false positive (noise — P5), never a
+  missed vuln.
+
+- **Method-sink receiver shapes rely on leading-greedy wildcards.** The SQL
+  detector uses `*.execute` / `*.cursor.execute` so it fires on idiomatic
+  receivers (`conn.cursor().execute(...)`, aliased cursors) without enumerating
+  every shape. XML sinks deliberately stay **module-qualified** (`lxml.etree.*`,
+  `xml.etree.ElementTree.*`) instead of a `*.parse` greedy form, so a safe
+  `defusedxml.ElementTree.parse(...)` is never matched.
+
+---
+
 ## Worked example
 
 ```yaml
