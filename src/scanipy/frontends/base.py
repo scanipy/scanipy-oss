@@ -10,7 +10,12 @@ engine.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from scanipy.ir import IRModule
 
 
 class Frontend(ABC):
@@ -19,5 +24,5 @@ class Frontend(ABC):
     language: str
 
     @abstractmethod
-    def parse(self, path: Path) -> object:
-        """Parse a source file into a normalized module."""
+    def parse(self, path: Path) -> IRModule | None:
+        """Parse a source file into the shared IR, or ``None`` if it cannot be parsed."""
