@@ -188,6 +188,13 @@ The OSS engine is single-language (Python) and intra-file. Known limitations,
 documented rather than hidden:
 
 - **No cross-file / whole-program analysis.** Summaries are intra-file only.
+- **Method call resolution is approximate.** A call's `callee_path` is matched to
+  an in-file function by its last segment (`obj.run` → `run`), so a tainted value
+  passed to a *non-self positional parameter* of a method (`obj.m(t)` where `t`
+  binds the second formal) can be missed because the receiver shifts the argument
+  indices — a false negative, P5-safe. A same-named top-level function may also be
+  applied (a false positive — acceptable noise). Tainted *receivers* (`self`)
+  resolve correctly.
 - **Alias through mutation** (`a = b; b.x = t; a.x` …), **dynamic subscripts**,
   and **dynamic / `*` imports** are best-effort or out of scope; taint is tracked
   per access path, not per heap object.

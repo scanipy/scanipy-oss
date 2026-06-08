@@ -14,6 +14,8 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
+import pytest
+
 from scanipy.dsl import DetectorSpec, Flow, Pattern, PatternKind, Propagator
 from scanipy.engine.taint import TaintEngine
 from scanipy.frontends.python_frontend import PythonFrontend
@@ -63,6 +65,18 @@ def _analyze(tmp_path: Path, source: str, spec: DetectorSpec = OS_SPEC) -> list[
     module = PythonFrontend().parse(file)
     assert module is not None
     return TaintEngine([spec]).analyze(module)
+
+
+# ---------------------------------------------------------------------------
+# Boundary contract
+# ---------------------------------------------------------------------------
+
+
+def test_analyze_rejects_non_module_ir() -> None:
+    with pytest.raises(TypeError):
+        TaintEngine([OS_SPEC]).analyze("not a module")
+    with pytest.raises(TypeError):
+        TaintEngine([OS_SPEC]).analyze(None)
 
 
 # ---------------------------------------------------------------------------
