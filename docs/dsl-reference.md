@@ -1,14 +1,18 @@
 # scanipy taint-DSL reference
 
-> **Status: draft / v0.** The engine that consumes these specs is still being
-> built, so this schema **co-evolves with the engine** — fields may change
-> before the first engine release. This file is the *single source of truth* for
-> the spec format; other docs link here rather than restating it.
+> **Status: v0 — LOCKED for 0.2.0.** This is the v0 schema and it is **frozen for
+> the 0.2.0 release**: the fields, pattern kinds, constraints, and flow grammar
+> described here are the contract the 0.2.0 engine implements and will not change
+> within the release. (Pre-1.0.0 the schema may still evolve in a *future* minor —
+> see [CHANGELOG.md](../CHANGELOG.md) — but a detector that validates against this
+> reference works with 0.2.0 as written.) This file is the *single source of
+> truth* for the spec format; other docs link here rather than restating it.
 >
-> The **parser is implemented** (`scanipy.dsl.parse_spec`): it validates every
-> field, all four pattern kinds (`call`, `attribute`, `parameter`, `import`), and
-> the flow grammar, raising a location-aware `DSLError` on anything outside the
-> DSL. See [Validation & errors](#validation--errors).
+> The **parser is implemented and shipping** (`scanipy.dsl.parse_spec`): it
+> validates every field, all four pattern kinds (`call`, `attribute`,
+> `parameter`, `import`), and the flow grammar, raising a location-aware
+> `DSLError` on anything outside the DSL. See
+> [Validation & errors](#validation--errors).
 
 A **detector** is a declarative YAML file that tells scanipy how to find one
 class of vulnerability by *taint tracking*: follow untrusted data from a
@@ -119,10 +123,12 @@ The parser validates pattern **shape** for every kind; the runtime meaning of
 The matcher resolves each kind against a different canonical name: a `call`
 matches on the **callee path**, an `attribute` on the **attribute chain**, an
 `import` on the **imported canonical name**, and a `parameter` on the **bare
-parameter name** (matched with the same wildcard grammar). No bundled v1 detector
-uses `parameter`/`import`; their exact runtime semantics (e.g. whether
-`parameter` is ever function-qualified) remain underspecified and may evolve with
-the engine (P7) — treat them as structural-only for now.
+parameter name** (matched with the same wildcard grammar). The **shape** of all
+four kinds is part of the locked v0 schema and is fully validated by the parser.
+No bundled 0.2.0 detector uses `parameter`/`import` — the seven shipped detectors
+are written with `call`/`attribute` patterns — so while their pattern shape is
+locked, their richer **runtime** behavior is exercised lightly in 0.2.0 (honest
+scope, P7); treat them as structural-and-available for now.
 
 ### `pattern`
 

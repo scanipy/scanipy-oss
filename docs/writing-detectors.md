@@ -6,9 +6,11 @@ A detector describes *where untrusted data comes from*, *what neutralizes it*,
 and *where it must never arrive unneutralized*. The engine does the actual
 tracking; your spec just declares the rules.
 
-> **Draft notice.** The taint DSL is **draft / v0**. It co-evolves with the
-> engine and is **not** a frozen contract — field names and behavior can change
-> between releases. Pin a detector-pack version if you need stability.
+> **Schema status.** The taint DSL is **v0, locked for 0.2.0** — the schema in
+> [the DSL reference](dsl-reference.md) is the contract the 0.2.0 engine
+> implements and will not change within the release. (Pre-1.0.0 it may still
+> evolve in a future minor; pin a detector-pack version if you need
+> cross-version stability.)
 
 ## Where detectors live
 
@@ -90,6 +92,22 @@ This is **principle P5**, and it is not optional. Each detector must ship:
 The pair is what proves a detector both *catches* the bug and *doesn't cry
 wolf* once the bug is fixed. A detector without both fixtures is incomplete.
 
+### Fixture-pairing convention
+
+Fixtures live in two sibling trees and pair **by filename**:
+
+```
+tests/fixtures/python/vulnerable/<name>.py   # must be flagged   (true positive)
+tests/fixtures/python/safe/<name>.py         # must stay clean   (true negative)
+```
+
+Use the **same `<name>.py`** in both trees so the pair is discoverable
+automatically — `<name>` typically matches the detector's `<name>` (e.g.
+`os-command.py`, `sql.py`). Interprocedural cases that exercise function
+summaries are prefixed `interproc-` (e.g. `interproc-os-command.py`). Fixtures
+are intentionally vulnerable sample programs: they are analysis **DATA**, excluded
+from `ruff`/`mypy` — never "fix" a fixture.
+
 ### Sanitizer soundness is one-sided
 
 Be deliberately conservative about what you declare a sanitizer. The two failure
@@ -113,24 +131,77 @@ true-positive / true-negative fixtures, so you begin with a working skeleton
 that already satisfies P5. Fill in the sources, sinks, and sanitizers from
 there.
 
+## Anatomy of a real detector
+
+The bundled OS-command detector,
+[`src/scanipy/detectors/injection/os-command.yml`](../src/scanipy/detectors/injection/os-command.yml),
+is a complete, shipping spec. Every field below is real:
+
+```yaml
+id: python.injection.os-command      # <language>.<class>.<name>
+name: OS command injection
+cwe: CWE-78
+severity: high
+languages: [python]
+message: >                           # shown on every finding: flaw + fix
+  Untrusted input reaches an OS command without sanitization, allowing an
+  attacker to execute arbitrary commands. Prefer a list argv with shell=False,
+  or quote inputs with shlex.quote.
+metadata:
+  owasp: "A03:2021-Injection"
+  references:
+    - https://cwe.mitre.org/data/definitions/78.html
+
+sources:                             # where untrusted data enters
+  - { kind: call, pattern: "input" }
+  - { kind: attribute, pattern: "flask.request.*" }
+
+sanitizers:                          # what neutralizes it (one-sided trust, P5)
+  - { kind: call, pattern: "shlex.quote" }
+
+sinks:                               # where tainted data becomes dangerous
+  - { kind: call, pattern: "os.system", args: [0] }
+  - { kind: call, pattern: "os.popen", args: [0] }
+  - { kind: call, pattern: "subprocess.*", when: { keyword: { shell: true } } }
+
+propagators:                         # how taint moves through helper calls
+  - { kind: call, pattern: "str.format", flow: { from: any-arg, to: return } }
+  - { kind: call, pattern: "os.path.join", flow: { from: any-arg, to: return } }
+```
+
+Reading it as taint flow:
+
+- **Sources** seed taint at `input(...)` and any `flask.request.*` attribute.
+- **Sinks** fire only where it matters: `os.system`/`os.popen` are flagged only on
+  argument `0` (`args: [0]`); a `subprocess.*` call is flagged only when it is
+  invoked with `shell=True` (`when: { keyword: { shell: true } }`) — a list-argv
+  `subprocess.run([...])` is safe and is not matched.
+- **Sanitizer** `shlex.quote` clears taint, so a quoted value reaching a sink is
+  not a finding.
+- **Propagators** carry taint through `str.format` and `os.path.join` so a sink
+  fed by `"...".format(tainted)` is still caught.
+
+For the authoritative meaning of every key (`args`, `when`, the wildcard rules,
+the flow vocabulary), see [the DSL reference](dsl-reference.md).
+
 ## Validating a spec
 
-Once you've written or edited a spec, check that it's well-formed:
+Once you've written or edited a spec, check that it's well-formed — `rules`
+commands are fully working:
 
 ```
 scanipy rules validate src/scanipy/detectors/<class>/<name>.yml
 ```
 
-This checks the YAML against the DSL. You can also list and inspect detectors:
+`rules validate` checks the YAML against the DSL: it prints
+`<file>: valid (<id>)` on success, and on a malformed spec it prints the
+location-aware `DSLError` line (`path:line:col: [id] field: message`) and exits
+`2`. You can also list and inspect the bundled detectors:
 
 ```
-scanipy rules list
-scanipy rules show <id>
+scanipy rules list                  # all detectors, sorted by id, with CWE + severity
+scanipy rules show <id>             # one spec in full (exit 2 on an unknown id)
 ```
-
-> Heads up: this is an early scaffold. Several subcommands are still stubs while
-> the engine and DSL settle, so expect rough edges and behavior to change as the
-> draft DSL evolves.
 
 ## Principles to keep in mind
 
