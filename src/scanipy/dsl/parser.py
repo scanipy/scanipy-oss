@@ -186,7 +186,13 @@ def _scalar_value(node: Node, *, ctx: _Ctx, field: str | None = None) -> str | b
             return False
         raise _err(f"invalid boolean {raw!r}", ctx=ctx, node=node, field=field)
     if tag == _TAG_INT:
-        return int(raw, 0)
+        # The YAML 1.1 resolver tags spellings Python's int() rejects (a leading
+        # zero like ``010``, or sexagesimal like ``1:30``) as ints; turn the raw
+        # ValueError into a location-aware DSLError instead of letting it leak.
+        try:
+            return int(raw, 0)
+        except ValueError as exc:
+            raise _err(f"invalid integer {raw!r}", ctx=ctx, node=node, field=field) from exc
     if tag == _TAG_NULL:
         return None
     # floats and any other tag are not part of the scalar vocabulary.
@@ -206,20 +212,37 @@ def _require_str(node: Node, *, ctx: _Ctx, field: str) -> str:
 # --------------------------------------------------------------------------- #
 # Metadata — free-form, but only well-typed scalars/lists/maps.
 # --------------------------------------------------------------------------- #
-def _build_metadata(node: Node, *, ctx: _Ctx) -> object:
+def _build_metadata(node: Node, *, ctx: _Ctx, seen: tuple[int, ...] = ()) -> object:
     """Recursively build a metadata subtree, preserving document order.
 
     Mappings become ``MappingProxyType`` (read-only), sequences become tuples,
     and scalars are typed via :func:`_scalar_value`. Order is never sorted so the
     value is stable for future fingerprinting.
+
+    A self-referential YAML anchor (``metadata: &m\\n  self: *m``) composes into a
+    node that contains itself; ``yaml.compose`` resolves the alias to the *same*
+    node object, so naive recursion loops forever (``RecursionError``). ``seen``
+    carries the ids of the nodes on the current recursion path (not a global set,
+    so a benign alias reused across sibling branches is still allowed) and a
+    repeat id is reported as a cycle via :class:`DSLError`.
     """
+    node_id = id(node)
+    if node_id in seen:
+        raise _err(
+            "metadata contains a self-referential anchor",
+            ctx=ctx,
+            node=node,
+            field="metadata",
+        )
     if isinstance(node, MappingNode):
         mapping = _as_mapping(node, ctx=ctx, field="metadata")
+        path = (*seen, node_id)
         return MappingProxyType(
-            {key: _build_metadata(child, ctx=ctx) for key, child in mapping.items()}
+            {key: _build_metadata(child, ctx=ctx, seen=path) for key, child in mapping.items()}
         )
     if isinstance(node, SequenceNode):
-        return tuple(_build_metadata(child, ctx=ctx) for child in node.value)
+        path = (*seen, node_id)
+        return tuple(_build_metadata(child, ctx=ctx, seen=path) for child in node.value)
     return _scalar_value(node, ctx=ctx, field="metadata")
 
 
@@ -257,7 +280,18 @@ def _parse_args(node: Node, *, ctx: _Ctx, field: str) -> tuple[int, ...]:
     for element in elements:
         if not isinstance(element, ScalarNode) or element.tag != _TAG_INT:
             raise _err("'args' indices must be integers", ctx=ctx, node=element, field=field)
-        index = int(element.value, 0)
+        # args only ever wants plain non-negative decimals; base-0 parsing rejects
+        # YAML 1.1 int spellings like ``010`` (leading zero) and ``1:30``
+        # (sexagesimal), so catch the raw ValueError and report it precisely.
+        try:
+            index = int(element.value, 0)
+        except ValueError as exc:
+            raise _err(
+                f"'args' indices must be plain integers, got {element.value!r}",
+                ctx=ctx,
+                node=element,
+                field=field,
+            ) from exc
         if index < 0:
             raise _err("'args' indices must be non-negative", ctx=ctx, node=element, field=field)
         indices.add(index)

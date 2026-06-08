@@ -274,7 +274,7 @@ def test_args_sorted_and_deduplicated() -> None:
     assert sink.args == (0, 1, 2)
 
 
-@pytest.mark.parametrize("args", ["[-1]", '["x"]', "[]", "[1.5]"])
+@pytest.mark.parametrize("args", ["[-1]", '["x"]', "[]", "[1.5]", "[010]", "[1:30]"])
 def test_args_invalid(args: str) -> None:
     text = _spec().replace('pattern: "os.system"', f'pattern: "os.system", args: {args}')
     with pytest.raises(DSLError):
@@ -536,6 +536,38 @@ def test_metadata_float_rejected() -> None:
     with pytest.raises(DSLError) as exc:
         parse_spec(text)
     assert "scalar" in exc.value.message
+
+
+@pytest.mark.parametrize("value", ["010", "1:30"])
+def test_metadata_yaml_int_spelling_raises_dslerror(value: str) -> None:
+    # The YAML 1.1 resolver tags spellings like `010` (leading zero) and `1:30`
+    # (sexagesimal) as ints, but Python's int(raw, 0) rejects them. The raw
+    # ValueError must be turned into a location-aware DSLError, never leak.
+    text = _spec() + f"metadata:\n  v: {value}\n"
+    with pytest.raises(DSLError) as exc:
+        parse_spec(text)
+    assert exc.value.field == "metadata"
+    assert value in exc.value.message
+
+
+def test_metadata_self_referential_anchor_raises_dslerror() -> None:
+    # A self-referential YAML anchor composes a node that contains itself; naive
+    # recursion would loop forever (RecursionError). It must be rejected as a
+    # DSLError on the cycle instead.
+    text = _spec() + "metadata: &m\n  self: *m\n"
+    with pytest.raises(DSLError) as exc:
+        parse_spec(text)
+    assert exc.value.field == "metadata"
+    assert "anchor" in exc.value.message
+
+
+def test_metadata_benign_alias_reuse_still_parses() -> None:
+    # A non-cyclic alias reused across sibling branches is legitimate and must
+    # not be mistaken for a cycle (path-scoped, not global, visited tracking).
+    text = _spec() + "metadata:\n  a: &x\n    k: v\n  b: *x\n"
+    spec = parse_spec(text)
+    assert dict(spec.metadata["a"]) == {"k": "v"}
+    assert dict(spec.metadata["b"]) == {"k": "v"}
 
 
 def test_error_location_points_at_offending_line() -> None:
