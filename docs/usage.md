@@ -11,12 +11,19 @@ and intra-file — see [Honest scope](#honest-scope).
 
 ## Installation
 
-scanipy is distributed on PyPI as **`scanipy-oss`** (the plain name `scanipy` is
-squatted by an unrelated package). The installed command is `scanipy`.
+scanipy is **not yet published to PyPI** — install it **from source**. The
+installed command is `scanipy`.
 
 ```bash
-pip install scanipy-oss
+git clone https://github.com/scanipy/scanipy-oss
+cd scanipy-oss
+pip install -e .          # editable install; or `pip install .`
 ```
+
+`scanipy-oss` is the **reserved future PyPI distribution name** (the plain name
+`scanipy` is squatted by an unrelated package). Publishing under `scanipy-oss` is
+planned but **pending** — until then, `pip install scanipy-oss` will not install
+this project; use the from-source steps above.
 
 Verify the install:
 
@@ -145,7 +152,8 @@ jobs:
           python-version: "3.12"
 
       - name: Install scanipy
-        run: pip install scanipy-oss
+        # Not on PyPI yet — install from source (pin a tag/SHA in real pipelines).
+        run: pip install "git+https://github.com/scanipy/scanipy-oss"
 
       - name: Run scanipy
         run: scanipy scan . --format sarif -o scanipy.sarif --fail-on high
