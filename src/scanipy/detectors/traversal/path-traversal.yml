@@ -20,10 +20,12 @@ sources:
   - { kind: attribute, pattern: "flask.request.*" }
 
 # These return a directory-stripped / validated name, neutralizing traversal.
+# Patterns are module-qualified: a bare local function happening to be named
+# "secure_filename" would not genuinely sanitize, and trusting it would be the
+# unsafe direction (a missed vuln) — so only the real library calls are listed (P5).
 sanitizers:
   - { kind: call, pattern: "os.path.basename" }
   - { kind: call, pattern: "werkzeug.utils.secure_filename" }
-  - { kind: call, pattern: "secure_filename" }
 
 # Where tainted data becomes dangerous: a path passed to a file operation.
 sinks:

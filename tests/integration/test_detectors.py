@@ -88,3 +88,30 @@ def test_every_detector_has_paired_fixtures() -> None:
         stem = _fixture_stem(spec)
         assert (FIXTURES / "vulnerable" / f"{stem}.py").is_file(), spec.id
         assert (FIXTURES / "safe" / f"{stem}.py").is_file(), spec.id
+
+
+# ---------------------------------------------------------------------------
+# Interprocedural fixtures (DETECTOR_9) — exercise the engine's TITO summaries
+# rather than the stem-paired per-detector matrix above. The taint crosses a
+# function-call boundary (caller source -> callee parameter -> callee sink), so
+# the witness is spliced across the call with a PROPAGATOR hop.
+# ---------------------------------------------------------------------------
+
+
+def test_interprocedural_true_positive_is_flagged() -> None:
+    """Taint flowing through a callee's parameter into its sink is flagged."""
+    findings = _analyze(FIXTURES / "vulnerable" / "interproc-os-command.py")
+    cmd = [f for f in findings if f.detector_id == "python.injection.os-command"]
+    assert len(cmd) == 1, "interprocedural os-command flow should be flagged once"
+
+    witness = cmd[0].witness
+    assert witness[0].role is WitnessRole.SOURCE
+    assert witness[-1].role is WitnessRole.SINK
+    # The call hop is spliced in as a PROPAGATOR step between source and sink.
+    assert any(step.role is WitnessRole.PROPAGATOR for step in witness)
+
+
+def test_interprocedural_true_negative_is_clean() -> None:
+    """A callee that sanitizes its parameter before the sink yields no finding."""
+    findings = _analyze(FIXTURES / "safe" / "interproc-path-traversal.py")
+    assert findings == []
