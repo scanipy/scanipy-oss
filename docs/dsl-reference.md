@@ -4,6 +4,11 @@
 > built, so this schema **co-evolves with the engine** — fields may change
 > before the first engine release. This file is the *single source of truth* for
 > the spec format; other docs link here rather than restating it.
+>
+> The **parser is implemented** (`scanipy.dsl.parse_spec`): it validates every
+> field, all four pattern kinds (`call`, `attribute`, `parameter`, `import`), and
+> the flow grammar, raising a location-aware `DSLError` on anything outside the
+> DSL. See [Validation & errors](#validation--errors).
 
 A **detector** is a declarative YAML file that tells scanipy how to find one
 class of vulnerability by *taint tracking*: follow untrusted data from a
@@ -43,15 +48,46 @@ propagators:[ <propagator>, ... ]    # how taint flows through   (optional)
 |---|---|---|
 | `id` | yes | Globally unique. Convention: `<language>.<class>.<name>`. |
 | `name` | yes | Short human-readable title. |
-| `cwe` | yes | Primary CWE identifier (e.g. `CWE-78`). |
-| `severity` | yes | One of `low`, `medium`, `high`, `critical`. |
-| `languages` | yes | Non-empty list; `python` is the only supported value in v0. |
+| `cwe` | yes | Primary CWE identifier; must match `CWE-<digits>` (e.g. `CWE-78`). |
+| `severity` | yes | One of `low`, `medium`, `high`, `critical` (lowercase strings). |
+| `languages` | yes | Non-empty list; `python` is the only supported value in v1 (P7). |
 | `message` | yes | Explains the flaw **and** the fix; rendered on every finding. |
-| `metadata` | no | Free-form map (`owasp`, `references`, …). |
+| `metadata` | no | Free-form map (`owasp`, `references`, …); document order is preserved. |
 | `sources` | yes | One or more patterns. |
 | `sinks` | yes | One or more patterns. |
-| `sanitizers` | no | Defaults to none. |
-| `propagators` | no | Defaults to the engine's built-in propagation. |
+| `sanitizers` | no | Optional; may be `[]`. A missing sanitizer never raises (P5). |
+| `propagators` | no | Optional. Defaults to the engine's built-in propagation. |
+
+Any **unknown** top-level key is rejected. Required keys must be present; the
+parser reports the first offending key in document order (deterministic, P3).
+
+---
+
+## Validation & errors
+
+`scanipy.dsl.parse_spec` validates every field shape, enum, and pattern/flow
+grammar, and rejects anything outside the DSL (unknown keys/kinds, bad enums,
+malformed patterns or flows, empty `sources`/`sinks`). Validation is exhaustive
+and **declarative** (P4): there is no per-detector or per-CWE logic in the parser.
+
+On any problem it raises a `scanipy.dsl.DSLError` (a `ValueError` subclass) whose
+`str()` is a single, deterministic line:
+
+```
+path:line:col: [spec_id] field: message
+```
+
+for example:
+
+```
+detectors/injection/os-command.yml:29:5: [python.injection.os-command] sinks[1].when: unknown 'when' condition 'argument'; v1 supports: keyword
+```
+
+The error also exposes the raw pieces as attributes (`.spec_id`, `.field`,
+`.source_path`, `.line`, `.column`) for programmatic use. Lines are 1-based and
+columns 0-based. Invalid YAML and structural problems (empty document,
+non-mapping root, duplicate keys) are reported the same way — a raw `yaml`
+exception never escapes.
 
 ---
 
@@ -68,12 +104,17 @@ string (with `*` wildcards), and optional constraints.
 
 ### `kind`
 
-| `kind` | Matches | v0 status |
-|---|---|---|
-| `call` | a function/method call, e.g. `os.system(...)` | supported (design) |
-| `attribute` | an attribute access, e.g. `flask.request.args` | supported (design) |
-| `parameter` | a function parameter (request-handler args) | **planned** |
-| `import` | an imported name | **planned** |
+| `kind` | Matches | Pattern shape | Status |
+|---|---|---|---|
+| `call` | a function/method call, e.g. `os.system(...)` | dotted path, `*` wildcards | supported |
+| `attribute` | an attribute access, e.g. `flask.request.args` | dotted path, `*` wildcards | supported |
+| `parameter` | a function parameter (request-handler args) | a bare name (`request`) or a scoped selector (`handler.request`) | supported |
+| `import` | an imported module/name | a module path, optionally ending in `*` (`pickle`, `flask.*`) | supported |
+
+All four kinds share the same dotted-path grammar (see [`pattern`](#pattern)).
+The parser validates pattern **shape** for every kind; the runtime meaning of
+`parameter`/`import` is resolved by the engine. `args` and `when` are accepted
+**only** on `kind: call` — see the validity matrix below.
 
 ### `pattern`
 
@@ -85,17 +126,35 @@ A dotted path with `*` as a wildcard segment:
 
 ### Optional constraints
 
-| Key | Applies to | Meaning |
+| Key | Valid on | Meaning |
 |---|---|---|
-| `args` | `call` | Restrict to specific **positional** argument indices, e.g. `args: [0]`. Taint in any listed argument triggers the rule. |
-| `when` | `call` | Extra conditions. v0 supports `when: { keyword: { name: value } }` — e.g. require `shell=True`. |
+| `args` | `call` only | Restrict to specific **positional** argument indices, e.g. `args: [0]`. A non-empty list of non-negative integers; the parser sorts and de-duplicates them. Taint in any listed argument triggers the rule. |
+| `when` | `call` only | Extra conditions. v0 supports exactly `when: { keyword: { name: value } }` — e.g. require `shell=True`. The `name` must be a valid identifier and the `value` must be a scalar. |
+
+### `args` / `when` validity matrix
+
+`args` and `when` are accepted **only** on `kind: call`; the parser rejects them
+on `attribute`, `parameter`, and `import` with a precise error.
+
+| `kind` | `args` | `when` |
+|---|---|---|
+| `call` | allowed | allowed |
+| `attribute` | rejected | rejected |
+| `parameter` | rejected | rejected |
+| `import` | rejected | rejected |
+
+Scalar typing is exact: `shell: true` is a YAML boolean and stays a `bool`,
+while `shell: 'true'` stays the string `"true"`. The two are kept distinct so the
+engine's `shell=True` check is unambiguous.
 
 ---
 
 ## Propagators
 
 A **propagator** describes how taint moves through an intermediate call, using a
-`flow` from one position to another.
+`flow` from one position to another. A propagator is a `kind: call` pattern (only
+`call` is allowed) plus a **required** `flow` mapping with exactly the keys
+`from` and `to`.
 
 ```yaml
 propagators:
@@ -105,15 +164,19 @@ propagators:
 
 ### Flow vocabulary
 
+`from` and `to` each take exactly one token from the grammar below; anything else
+(e.g. `returns`, `arg:x`, an empty string) is rejected.
+
 | Token | Meaning |
 |---|---|
 | `any-arg` | any positional argument |
-| `arg:N` | the Nth positional argument (0-based) |
+| `arg:N` | the Nth positional argument (0-based, `N` a non-negative integer) |
 | `self` | the receiver of a method call |
 | `return` | the call's return value |
 
-The engine ships with sensible default propagation (e.g. string concatenation
-and f-strings carry taint); propagators add library-specific flows.
+The YAML key `from` maps to the `Flow.from_` field (Python keyword). The engine
+ships with sensible default propagation (e.g. string concatenation and f-strings
+carry taint); propagators add library-specific flows.
 
 ---
 
