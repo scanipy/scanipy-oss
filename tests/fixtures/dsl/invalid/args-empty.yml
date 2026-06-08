@@ -1,0 +1,10 @@
+id: python.test.args-empty
+name: Empty args list
+cwe: CWE-78
+severity: low
+languages: [python]
+message: args must list at least one index.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system", args: [] }

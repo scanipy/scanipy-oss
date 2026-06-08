@@ -1,0 +1,10 @@
+id: python.test.unknown-pattern-field
+name: Unknown pattern field
+cwe: CWE-78
+severity: low
+languages: [python]
+message: A pattern carries a field that is not allowed.
+sources:
+  - { kind: call, pattern: "input", bogus: 1 }
+sinks:
+  - { kind: call, pattern: "os.system" }

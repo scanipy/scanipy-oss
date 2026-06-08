@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Detector registry — discovers the bundled detector specs.
+"""Detector registry — discovers and parses the bundled detector specs.
 
 The taint-DSL specs under ``scanipy/detectors/`` ship as package data. This
-module locates and (eventually) parses them into :class:`~scanipy.dsl.DetectorSpec`
+module locates them and parses them into :class:`~scanipy.dsl.DetectorSpec`
 records. Detection logic lives entirely in those specs, not here (principle P4).
 
-0.1.0 scaffold: :func:`discover_spec_files` already works; :func:`load_builtin_detectors`
-returns an empty set until :func:`scanipy.dsl.parse_spec` lands (taint-engine agent).
+:func:`load_builtin_detectors` parses every bundled spec in deterministic order
+(P3), enforces globally-unique ids, and returns a tuple sorted by id.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from scanipy.dsl import DetectorSpec
+from scanipy.dsl import DetectorSpec, DSLError, load_spec_file
 
 
 def builtin_detectors_path() -> Path:
@@ -30,8 +30,26 @@ def discover_spec_files() -> tuple[Path, ...]:
 
 
 def load_builtin_detectors() -> tuple[DetectorSpec, ...]:
-    """Parse and return every bundled detector spec.
+    """Parse every bundled detector spec, sorted by id, with unique ids.
 
-    Stub: returns ``()`` until the DSL parser is implemented.
+    Parses each path from :func:`discover_spec_files` (already sorted, so the
+    parse order is deterministic — P3), enforces globally-unique detector ids to
+    protect the engine from nondeterministic detector selection, and returns the
+    specs as a tuple sorted by ``id``.
+
+    Raises :class:`~scanipy.dsl.DSLError` if any spec is invalid or if two specs
+    share an id.
     """
-    return ()
+    seen: dict[str, Path] = {}
+    specs: list[DetectorSpec] = []
+    for path in discover_spec_files():
+        spec = load_spec_file(path)
+        if spec.id in seen:
+            raise DSLError(
+                f"duplicate detector id {spec.id!r} in {path} (already defined in {seen[spec.id]})",
+                spec_id=spec.id,
+                source_path=str(path),
+            )
+        seen[spec.id] = path
+        specs.append(spec)
+    return tuple(sorted(specs, key=lambda s: s.id))

@@ -1,0 +1,11 @@
+id: python.test.duplicate-key
+id: python.test.duplicate-key
+name: Duplicate top-level key
+cwe: CWE-78
+severity: low
+languages: [python]
+message: id appears twice.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

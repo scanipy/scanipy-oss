@@ -1,0 +1,10 @@
+id: python.test.args-non-int
+name: Non-integer arg index
+cwe: CWE-78
+severity: low
+languages: [python]
+message: arg indices must be integers.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system", args: ["x"] }

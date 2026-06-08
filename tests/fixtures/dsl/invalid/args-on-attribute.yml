@@ -1,0 +1,10 @@
+id: python.test.args-on-attribute
+name: Args on attribute
+cwe: CWE-78
+severity: low
+languages: [python]
+message: args is only valid on kind call.
+sources:
+  - { kind: attribute, pattern: "flask.request.args", args: [0] }
+sinks:
+  - { kind: call, pattern: "os.system" }

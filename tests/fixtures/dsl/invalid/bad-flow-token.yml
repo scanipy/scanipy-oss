@@ -1,0 +1,12 @@
+id: python.test.bad-flow-token
+name: Bad flow token
+cwe: CWE-78
+severity: low
+languages: [python]
+message: flow tokens are restricted.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }
+propagators:
+  - { kind: call, pattern: "str.format", flow: { from: returns, to: return } }

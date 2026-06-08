@@ -1,0 +1,10 @@
+id: python.test.when-on-attribute
+name: when on attribute
+cwe: CWE-78
+severity: low
+languages: [python]
+message: when is only valid on kind call.
+sources:
+  - { kind: attribute, pattern: "flask.request.args", when: { keyword: { x: 1 } } }
+sinks:
+  - { kind: call, pattern: "os.system" }

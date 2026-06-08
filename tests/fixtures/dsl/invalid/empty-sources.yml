@@ -1,0 +1,9 @@
+id: python.test.empty-sources
+name: Empty sources
+cwe: CWE-78
+severity: low
+languages: [python]
+message: sources must be non-empty.
+sources: []
+sinks:
+  - { kind: call, pattern: "os.system" }

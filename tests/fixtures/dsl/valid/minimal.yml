@@ -1,0 +1,11 @@
+# Smallest legal detector spec: required fields + one source + one sink.
+id: python.test.minimal
+name: Minimal detector
+cwe: CWE-78
+severity: low
+languages: [python]
+message: A minimal but valid detector spec.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system", args: [0] }

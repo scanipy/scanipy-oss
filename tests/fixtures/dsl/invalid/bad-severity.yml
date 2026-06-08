@@ -1,0 +1,10 @@
+id: python.test.bad-severity
+name: Bad severity
+cwe: CWE-78
+severity: catastrophic
+languages: [python]
+message: Severity is not one of the four allowed values.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "os.system" }

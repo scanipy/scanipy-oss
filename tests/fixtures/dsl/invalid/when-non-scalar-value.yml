@@ -1,0 +1,10 @@
+id: python.test.when-non-scalar
+name: Non-scalar when value
+cwe: CWE-78
+severity: low
+languages: [python]
+message: when.keyword values must be scalars.
+sources:
+  - { kind: call, pattern: "input" }
+sinks:
+  - { kind: call, pattern: "subprocess.run", when: { keyword: { env: [1, 2] } } }
