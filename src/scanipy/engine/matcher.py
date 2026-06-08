@@ -154,8 +154,10 @@ def _match_dotted(pattern: str, name: str) -> bool:
     comparison (never regex/glob over the raw string), so it is deterministic and
     immune to substring surprises (``*.execute`` never matches ``executemany``).
 
-    Three modes, dispatched by where ``*`` appears (the parser rejects any other
-    ``*`` placement, e.g. multiple ``*`` or ``os.sys*``):
+    Three modes, dispatched by where ``*`` appears. The parser rejects any other
+    ``*`` placement at load time (a mid-segment ``*`` like ``os.sys*`` or ``a.*.c``,
+    or more than one ``*`` like ``*.*``), so only these three ever reach a real
+    detector; this function's handling of anything else is defense-in-depth:
 
     * **EXACT** (no ``*``): match iff the segment lists are equal. ``os.system``
       matches only ``os.system``; bare ``input`` matches only ``input`` (not
@@ -171,9 +173,10 @@ def _match_dotted(pattern: str, name: str) -> bool:
       ``self.db.cursor.execute``; ``*.cursor.execute`` matches
       ``self.db.cursor.execute`` but not ``self.db.execute``.
 
-    Defensive on malformed input the parser is expected to reject: an empty
-    pattern, or a ``*`` anywhere other than a lone leading/trailing segment,
-    returns ``False`` (never widens, never raises).
+    Defense-in-depth for a malformed pattern the parser rejects at load time: an
+    empty pattern, or a ``*`` anywhere other than a lone leading/trailing segment,
+    returns ``False`` (never widens, never raises) should such a :class:`Pattern`
+    ever be constructed directly.
     """
     if not pattern:
         return False
@@ -187,8 +190,8 @@ def _match_dotted(pattern: str, name: str) -> bool:
         return p == n
 
     if len(star_positions) != 1:
-        # Multiple wildcards are unsupported; the parser rejects them, but the
-        # matcher refuses to guess rather than over-match.
+        # Multiple wildcards are unsupported; the parser rejects them at load time.
+        # This is defense-in-depth (no-widen) for a Pattern built directly.
         return False
 
     star = star_positions[0]

@@ -262,7 +262,11 @@ def test_match_dotted_table(pattern: str, name: str, expected: bool) -> None:
     ],
 )
 def test_match_dotted_malformed_returns_false(pattern: str, name: str) -> None:
-    # Malformed patterns the parser rejects must never raise and never widen.
+    # The parser now rejects these wildcard placements at load time (see
+    # test_dsl_parser.test_wildcard_placement_rejected), so they cannot arrive via
+    # parse_spec. Calling _match_dotted directly here exercises the matcher's
+    # defense-in-depth no-widen behavior: were such a Pattern ever constructed
+    # directly, the matcher must still never raise and never widen.
     assert _match_dotted(pattern, name) is False
 
 

@@ -160,10 +160,15 @@ position picks one of exactly three modes:
   `executemany` (different last segment).
 - A lone `*` is the trailing-single case with an empty prefix: it matches any
   single-segment name and nothing dotted.
-- Any **other** `*` placement (a mid-segment `*` like `os.sys*`, a wildcard in the
-  middle like `a.*.c`, or more than one `*`) is **not** a valid pattern. The
-  parser rejects it; if one ever reaches the matcher it is treated as **no match**
-  (the matcher never guesses and never widens).
+- Any **other** `*` placement is **not** a valid pattern and the parser
+  **rejects it at load time** with a `DSLError` — a typo'd pattern fails loudly
+  rather than becoming a silently-dead rule (P5/P7). `*` is allowed **only once**,
+  as a single **whole** leading segment (`*.suffix`) or a single **whole**
+  trailing segment (`prefix.*`). Rejected examples: a partial-segment `*` like
+  `os.sys*`, a mid-segment wildcard like `a.*.c` or `os.*.system`, and more than
+  one `*` like `*.*` or `*.a.*`. The matcher additionally **never widens**: were
+  such a `Pattern` ever constructed directly (bypassing the parser), it is treated
+  as **no match** (defense-in-depth — the matcher never guesses).
 - An **unresolved** name (the frontend could not canonicalize the callee/target,
   e.g. `foo()()`) is always a no-match — never an error.
 

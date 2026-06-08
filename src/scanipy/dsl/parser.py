@@ -256,15 +256,35 @@ def _validate_pattern_string(
 
     All kinds share the dotted grammar: ``.``-separated segments, each either a
     Python identifier or ``*``. This rejects empty/leading/trailing/double dots,
-    spaces, parentheses, and brackets. ``parameter`` (a bare name or scoped
-    selector) and ``import`` (a module path, optionally ending ``*``) both fit the
-    same grammar; only shape is checked here.
+    spaces, parentheses, brackets, and partial-segment stars (``os.sys*``).
+    ``parameter`` (a bare name or scoped selector) and ``import`` (a module path,
+    optionally ending ``*``) both fit the same grammar; only shape is checked here.
+
+    Wildcard **placement** is also enforced (P5/P7: no silently-dead rules): the
+    matcher only honors ``*`` as a single whole leading segment (``*.suffix``,
+    leading-greedy) or a single whole trailing segment (``prefix.*``,
+    trailing-single). Any mid-segment star (``a.*.c``, ``os.*.system``) or more
+    than one star (``*.*``, ``*.a.*``) would silently never match, so we reject it
+    here at load time rather than let a typo'd pattern become a dead rule.
     """
     if not value:
         raise _err("pattern must not be empty", ctx=ctx, node=node, field=field)
     if not _DOTTED_RE.match(value):
         raise _err(
             f"invalid pattern {value!r}: expected dotted segments of identifiers or '*'",
+            ctx=ctx,
+            node=node,
+            field=field,
+        )
+    # The regex guarantees well-formed segments; now pin '*' to a single whole
+    # leading or trailing segment. A lone '*' has length 1 (position 0 is both the
+    # first and last segment) and is allowed.
+    segments = value.split(".")
+    stars = [i for i, seg in enumerate(segments) if seg == "*"]
+    if len(stars) > 1 or (stars and stars[0] not in (0, len(segments) - 1)):
+        raise _err(
+            f"invalid wildcard in pattern {value!r}: "
+            "'*' may appear only once, as the first or last segment",
             ctx=ctx,
             node=node,
             field=field,

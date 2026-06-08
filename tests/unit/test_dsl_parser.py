@@ -247,12 +247,39 @@ def test_dotted_pattern_accepts(pattern: str) -> None:
 
 @pytest.mark.parametrize(
     "pattern",
-    ["", "os..system", ".os", "os.", "os system", "os.sys(tem)", "os[0]"],
+    ["", "os..system", ".os", "os.", "os system", "os.sys(tem)", "os[0]", "os.sys*"],
 )
 def test_dotted_pattern_rejects(pattern: str) -> None:
     text = _spec().replace('pattern: "os.system"', f'pattern: "{pattern}"')
     with pytest.raises(DSLError):
         parse_spec(text)
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    ["os.system", "subprocess.*", "*.execute", "*.cursor.execute", "flask.request.*", "input"],
+)
+def test_wildcard_placement_accepts_valid(pattern: str) -> None:
+    # '*' as a single whole leading or trailing segment (and no-wildcard patterns)
+    # all stay valid.
+    text = _spec().replace('pattern: "os.system"', f'pattern: "{pattern}"')
+    spec = parse_spec(text)
+    assert any(p.pattern == pattern for p in spec.sinks)
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    ["os.*.system", "a.*.c", "*.*", "*.a.*"],
+)
+def test_wildcard_placement_rejected(pattern: str) -> None:
+    # A mid-segment '*' or more than one '*' would silently never match, so the
+    # parser rejects it at load time (P5/P7: no silently-dead rules). All four
+    # pass the dotted-shape regex and fail only the placement check, so they share
+    # the wildcard-placement message.
+    text = _spec().replace('pattern: "os.system"', f'pattern: "{pattern}"')
+    with pytest.raises(DSLError) as exc:
+        parse_spec(text)
+    assert "may appear only once" in exc.value.message
 
 
 # --------------------------------------------------------------------------- #
