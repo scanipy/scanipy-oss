@@ -126,9 +126,10 @@ matches on the **callee path**, an `attribute` on the **attribute chain**, an
 parameter name** (matched with the same wildcard grammar). The **shape** of all
 four kinds is part of the locked v0 schema and is fully validated by the parser.
 No bundled 0.2.0 detector uses `parameter`/`import` — the seven shipped detectors
-are written with `call`/`attribute` patterns — so while their pattern shape is
-locked, their richer **runtime** behavior is exercised lightly in 0.2.0 (honest
-scope, P7); treat them as structural-and-available for now.
+are written with `call`/`attribute` patterns — so while their pattern **shape**
+is part of the locked v0 schema and fully validated by the parser, their richer
+**runtime** semantics are **not relied upon** by the shipped catalog in this
+release (honest scope, P7); treat them as structural-for-now.
 
 ### `pattern`
 
