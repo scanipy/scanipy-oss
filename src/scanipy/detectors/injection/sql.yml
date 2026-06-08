@@ -1,4 +1,4 @@
-# scanipy detector spec — taint DSL (DRAFT / v0). Schema: docs/dsl-reference.md
+# scanipy detector spec — taint DSL (v0, locked for 0.2.0). Schema: docs/dsl-reference.md
 id: python.injection.sql
 name: SQL injection
 cwe: CWE-89

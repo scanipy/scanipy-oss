@@ -20,27 +20,27 @@ multi-tenant, or attested-determinism guarantees. Never copy the proprietary
 IFDS/IDE engine internals into this repo — the OSS DSL is its own, simpler design.
 
 - **Distribution (PyPI):** `scanipy-oss`  ·  **import package & command:** `scanipy`
-- **Python:** ≥ 3.10  ·  **License:** Apache-2.0  ·  **Version:** 0.1.0 (alpha)
+- **Python:** ≥ 3.10  ·  **License:** Apache-2.0  ·  **Version:** 0.2.0
 
-## 2. Status — what works today vs. what's stubbed
+## 2. Status — working tool (0.2.0)
 
-This is the **0.1.0 scaffold**. Be honest about it in code and docs.
+`scanipy scan` works end-to-end: the Python frontend builds an IR, the taint
+engine tracks data flow (intraprocedural **+ intra-file interprocedural** via
+function summaries), and detectors are declarative DSL specs. All commands are real.
 
-| Works now | Stubbed (raises / exits 2 / returns empty) |
+| Works (0.2.0) | Notes |
 |---|---|
-| `scanipy --help`, `version`, `--version` | `scanipy scan` (no engine yet) |
-| The CLI surface, exit codes, reporters (text/json/sarif) | `scanipy rules list/show/validate` |
-| Finding model + severity ordering | `scanipy.dsl.parse_spec` (DSL parser) |
-| Bundled detector-spec discovery | `scanipy.engine.TaintEngine.analyze` |
-| Build, packaging, CI, type/lint/test gates | `scanipy.frontends.PythonFrontend.parse` |
+| `scanipy scan PATH` | taint analysis → witness-backed findings; `--format text\|json\|sarif`; exit `0`/`1`/`2` |
+| `scanipy rules list/show/validate` | inspect/validate the detector catalog |
+| `scanipy version`, `--help`, `--version` | — |
+| 7 detectors | os-command, sql, code-injection, path-traversal, ssrf, unsafe-deserialization, xxe |
+| Engine | `dsl.parse_spec`, `frontends.PythonFrontend.parse`, `engine.TaintEngine.analyze` all implemented |
 
-The next milestones are the **Python frontend**, the **DSL parser**, and the
-**taint engine** — owned by the `taint-engine` agent.
-
-**Building it:** the full v1 plan (working scan, 6 core detectors, intra-file
-interprocedural taint, → `0.2.0`) is in [PLAN.md](PLAN.md) — architecture, the
-102-task work breakdown, the dependency DAG / phased PR sequence, and acceptance
-gates. Detailed per-subsystem design notes: [docs/design/v1-design-notes.md](docs/design/v1-design-notes.md).
+Built per **[PLAN.md](PLAN.md)** (architecture, work breakdown, phase plan);
+per-subsystem design notes in [docs/design/v1-design-notes.md](docs/design/v1-design-notes.md).
+Honest scope (**P7**): single-language (Python), intraprocedural **+ intra-file
+interprocedural** only; documented limitations live in `docs/dsl-reference.md` and
+`docs/ir-reference.md`. Not yet on PyPI — install from source (`pip install -e .`).
 
 ## 3. Repository map
 
