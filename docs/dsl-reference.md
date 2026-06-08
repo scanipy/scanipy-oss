@@ -116,6 +116,14 @@ The parser validates pattern **shape** for every kind; the runtime meaning of
 `parameter`/`import` is resolved by the engine. `args` and `when` are accepted
 **only** on `kind: call` — see the validity matrix below.
 
+The matcher resolves each kind against a different canonical name: a `call`
+matches on the **callee path**, an `attribute` on the **attribute chain**, an
+`import` on the **imported canonical name**, and a `parameter` on the **bare
+parameter name** (matched with the same wildcard grammar). No bundled v1 detector
+uses `parameter`/`import`; their exact runtime semantics (e.g. whether
+`parameter` is ever function-qualified) remain underspecified and may evolve with
+the engine (P7) — treat them as structural-only for now.
+
 ### `pattern`
 
 A dotted path with `*` as a wildcard segment:
@@ -123,6 +131,41 @@ A dotted path with `*` as a wildcard segment:
 - `os.system` — exactly `os.system`
 - `subprocess.*` — any direct attribute of `subprocess` (`run`, `Popen`, …)
 - `*.cursor.execute` — `execute` on any object's `.cursor`
+
+#### Wildcard matching semantics (pinned)
+
+The pattern is matched against the frontend's **canonical dotted name** for the
+site (imports/aliases already resolved). Matching is **segment-wise** — both the
+pattern and the name are split on `.` and compared segment by segment, never as a
+substring or a glob over the raw string. A single `*` segment is allowed, and its
+position picks one of exactly three modes:
+
+| Mode | Where `*` is | `*` consumes | Example pattern | Matches | Does **not** match |
+|---|---|---|---|---|---|
+| **Exact** | no `*` | — | `os.system` | `os.system` | `os.popen`; `mymod.os.system` |
+| **Exact (bare)** | no `*` | — | `input` | `input` | `mymod.input` |
+| **Trailing-single** | last segment | **exactly one** segment | `subprocess.*` | `subprocess.run` | `subprocess.run.foo`; bare `subprocess` |
+| **Trailing-single** | last segment | **exactly one** segment | `flask.request.*` | `flask.request.args` | `flask.request.args.get` |
+| **Leading-greedy** | first segment | **one or more** segments | `*.execute` | `db.execute`; `self.db.cursor.execute` | `db.executemany`; bare `execute` |
+| **Leading-greedy** | first segment | **one or more** segments | `*.cursor.execute` | `self.db.cursor.execute` | `self.db.execute` |
+
+- **Trailing-single** (`pkg.*`) fixes the literal prefix and requires the name to
+  be exactly one segment longer — `*` stands for **one** attribute, not a subtree.
+- **Leading-greedy** (`*.tail`) fixes the literal **suffix** and lets `*` swallow
+  **one or more** leading segments, with the receiver prefix left unconstrained.
+  This is the load-bearing safety net for idiomatic method sinks: `*.execute`
+  fires on `self.db.cursor.execute` (an aliased/deep receiver) without the spec
+  author having to enumerate every receiver shape. It is intentionally **greedy**,
+  unlike trailing-single, and is matched per segment, so `*.execute` never matches
+  `executemany` (different last segment).
+- A lone `*` is the trailing-single case with an empty prefix: it matches any
+  single-segment name and nothing dotted.
+- Any **other** `*` placement (a mid-segment `*` like `os.sys*`, a wildcard in the
+  middle like `a.*.c`, or more than one `*`) is **not** a valid pattern. The
+  parser rejects it; if one ever reaches the matcher it is treated as **no match**
+  (the matcher never guesses and never widens).
+- An **unresolved** name (the frontend could not canonicalize the callee/target,
+  e.g. `foo()()`) is always a no-match — never an error.
 
 ### Optional constraints
 
@@ -146,6 +189,41 @@ on `attribute`, `parameter`, and `import` with a precise error.
 Scalar typing is exact: `shell: true` is a YAML boolean and stays a `bool`,
 while `shell: 'true'` stays the string `"true"`. The two are kept distinct so the
 engine's `shell=True` check is unambiguous.
+
+#### `args` matching semantics (pinned)
+
+- Indices are **0-based and positional**, and they **exclude the receiver** of a
+  method call. On `*.execute` the receiver is the object before `.execute`;
+  `args: [0]` targets the **first written argument** (the SQL string), not the
+  receiver. The receiver is addressed as `self` in the [flow vocabulary](#flow-vocabulary).
+- With **no `args`** key, every written positional argument is in scope.
+- With an `args` restriction, the engine checks the **intersection** of the listed
+  indices with the call's actual written positional arguments. Out-of-range and
+  negative indices are dropped; the surviving set is sorted and de-duplicated.
+- If a restriction names **only** out-of-range indices (e.g. `args: [5]` on a
+  two-argument call), the pattern **does not match** that site — it cannot carry
+  the targeted taint.
+- **Known gap (v1):** `args` is positional-only. A dangerous value passed by
+  **keyword** (`subprocess.run(args=cmd, shell=True)`) is not covered by a
+  positional `args` restriction — this is the deferred "kwarg-targeted args" DSL
+  extension. The net effect is a false negative (honest scope, P7); model such
+  sinks with `when` (as the os-command spec does for `subprocess.*`) where
+  possible. `*args` splats are counted as one written positional; over-approximating
+  them is the engine's decision, not the matcher's.
+
+#### `when` matching semantics (pinned)
+
+- v1 supports exactly the `keyword` condition. `when: { keyword: { shell: true } }`
+  matches **only** a keyword argument passed as a **constant literal** equal to the
+  expected value. `shell=True` matches only a literal `True`; `shell=False`, an
+  absent `shell`, or `shell=<variable>` (a non-literal) do **not** match.
+- Multiple keyword pairs are **ANDed** — every pair must hold. Keyword names and
+  `when` keys are evaluated in sorted order for determinism (P3).
+- Any **unknown** top-level `when` key (anything other than `keyword`) is treated
+  as **no match**, so an unsupported constraint can never silently widen matches.
+  The parser is the real gate and rejects such keys up front.
+- **Known gap (v1):** literal-equality only — `shell=<truthy variable>` is a false
+  negative. Niche, documented (P7).
 
 ---
 
