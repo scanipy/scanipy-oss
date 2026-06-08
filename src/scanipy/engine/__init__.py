@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from scanipy.engine.matcher import MatchNode, MatchResult, match, matches
 from scanipy.engine.taint import TaintEngine
 
-__all__ = ["TaintEngine"]
+__all__ = ["MatchNode", "MatchResult", "TaintEngine", "match", "matches"]
