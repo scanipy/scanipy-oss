@@ -7,17 +7,18 @@
 
 <p align="center">
   <a href="https://github.com/scanipy/scanipy-oss/actions"><img alt="CI" src="https://img.shields.io/badge/CI-pending-lightgrey"></a>
-  <a href="https://pypi.org/project/scanipy-oss/"><img alt="PyPI" src="https://img.shields.io/badge/PyPI-scanipy--oss-blue"></a>
+  <img alt="PyPI" src="https://img.shields.io/badge/PyPI-not%20yet%20published-lightgrey">
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
   <img alt="Status" src="https://img.shields.io/badge/status-alpha-orange">
 </p>
 
 ---
 
-> **🚧 Early development.** This repository is the **0.1.0 scaffold**: a runnable
-> CLI skeleton, the project architecture, and the taint-DSL design. The scan
-> engine is not implemented yet — `scanipy scan` is currently a stub. Star and
-> watch the repo to follow along.
+> **0.2.0 — the engine works.** `scanipy scan` now performs real taint analysis:
+> it follows untrusted data from sources to sinks and reports the
+> `source → … → sink` witness behind every finding. Seven detectors ship today
+> (see [the catalog](#detector-catalog)). **Install is from source for now** —
+> scanipy is not yet on PyPI (see [Install](#install)).
 
 ## Why scanipy
 
@@ -37,19 +38,29 @@ a risky function appears. Sanitizers on the path suppress the finding.
 
 ## Install
 
+scanipy is **not yet published to PyPI** — install it **from source**:
+
 ```bash
-pip install scanipy-oss
+git clone https://github.com/scanipy/scanipy-oss
+cd scanipy-oss
+pip install -e .          # or: pip install .
 ```
 
 The installed command is `scanipy` (you can also run `python -m scanipy`).
 
+> **Heads up.** `scanipy-oss` is the **reserved future PyPI distribution name**;
+> publishing it is planned but **pending** (no release is on PyPI yet). Until then
+> `pip install scanipy-oss` will **not** install this project — use the
+> from-source steps above. Requires Python 3.10+.
+
 ## Quickstart
 
 ```bash
-scanipy scan .            # scan the current project   (coming soon)
-scanipy scan app.py       # scan a single file         (coming soon)
-scanipy version           # works today
-scanipy --help            # works today
+scanipy scan .            # scan the current project
+scanipy scan app.py       # scan a single file
+scanipy rules list        # list the bundled detectors
+scanipy version           # print the version
+scanipy --help            # full command reference
 ```
 
 Useful flags (on the `scan` command):
@@ -86,9 +97,27 @@ sinks:
 Full schema: [docs/dsl-reference.md](docs/dsl-reference.md). Adding coverage:
 [docs/writing-detectors.md](docs/writing-detectors.md).
 
+## Detector catalog
+
+Seven detectors ship in 0.2.0 and run with zero config (`scanipy rules list`):
+
+| Detector id | CWE | Severity | Finds |
+|---|---|---|---|
+| `python.injection.os-command` | CWE-78 | high | OS command injection |
+| `python.injection.sql` | CWE-89 | high | SQL injection |
+| `python.injection.code-injection` | CWE-94 | critical | Python code injection (`eval`/`exec`/`compile`) |
+| `python.traversal.path-traversal` | CWE-22 | high | Path traversal |
+| `python.ssrf.ssrf` | CWE-918 | high | Server-side request forgery |
+| `python.deserialization.unsafe-deserialization` | CWE-502 | critical | Unsafe deserialization (`pickle`/unsafe YAML) |
+| `python.xxe.xxe` | CWE-611 | high | XML external entity (XXE) injection |
+
+See a real scan end-to-end — the exact witness output and exit codes — in
+[docs/examples/end-to-end.md](docs/examples/end-to-end.md).
+
 ## Documentation
 
 - [Usage](docs/usage.md)
+- [End-to-end example](docs/examples/end-to-end.md)
 - [Writing detectors](docs/writing-detectors.md)
 - [Taint-DSL reference](docs/dsl-reference.md)
 - [Contributing](CONTRIBUTING.md)
@@ -104,9 +133,12 @@ is the full meal.
 
 ## Status & roadmap
 
-0.1.0 ships the scaffold (CLI skeleton, architecture, DSL design). Next up: the
-Python frontend and taint engine, the DSL parser, and the first working
-detectors. See [CHANGELOG.md](CHANGELOG.md).
+0.2.0 makes the tool work end-to-end: the Python frontend, the DSL parser, the
+taint engine (intra-file, including intra-file interprocedural via function
+summaries), and the seven detectors above. **Honest scope (P7):** the OSS engine
+is single-language (Python) and does not do cross-file / whole-program analysis —
+that lives in [scanipy Cloud](#scanipy-cloud). scanipy is **not yet on PyPI**;
+publishing is the next milestone. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributing
 
