@@ -139,6 +139,7 @@ disallow_untyped_decorators = false
 # Pytest
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
+pythonpath = ["."]
 minversion = "8.0"
 testpaths = ["tests"]
 addopts = ["--strict-markers", "-q"]
